@@ -70,7 +70,9 @@ Specifically:
 
 * CHAP, MS-CHAP, and MS-CHAPv2 can still be carried inside of SRADIUS
 
-If a home server chooses to implement SRADIUS, it can also choose to also require full FIPS-140 compliance.  In which case the home server will not support CHAP or MS-CHAP.  This decision is entirely site local, and is not a requirement of the SRADIUS transport.
+If a home server chooses to implement SRADIUS, it can also choose to also require full FIPS-140 compliance.  In which case the home server will not natively support CHAP or MS-CHAP.  However, it is still possible for a home server to accept authentication methods which depend on MD4 or MD5, so long as those methods are passed somehow to a secondary server which supports them.
+
+The decision to support (or not) any authentication method is entirely site local, and is not a requirement of the SRADIUS transport.
 
 Any proxies which accept or originate SRADIUS connections are able to proxy CHAP and MS-CHAP without issue.
 
@@ -198,6 +200,8 @@ The same requirement applies to a proxy which uses SRADIUS.  The proxy may recei
 
 The crypto-agility requirements of [RFC6421] are addressed in [RFC6614] Appendix C, and in Section 10.1 of [RFC7360].  SRADIUS makes no changes from, or additions to, those specifications.
 
+This document adds the requirement that any new RADIUS or SRADIUS specification MUST NOT introduce new cryptographic primitives as was done with User-Password and Tunnel-Password.  There is insufficient expertise in the RADIUS community to securely design new cryptography.
+
 # Privacy Considerations
 
 SRADIUS requires secure transport for RADIUS, and this has all of the privacy benefits of RADIUS/TLS [RFC6614] and RADIUS/DTLS [RFC7360].
@@ -208,9 +212,10 @@ The primary focus of this document is addressing security considerations for RAD
 
 # IANA Considerations
 
-IANA is required to two new ports:
+IANA is request to allocate two new ports:
 
 SRADIUS/UDP - TBD
+
 SRADIUS/TCP - TBD
 
 # Acknowledgements
