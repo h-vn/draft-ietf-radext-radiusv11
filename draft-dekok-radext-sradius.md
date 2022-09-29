@@ -6,7 +6,7 @@ docname: draft-dekok-radext-sradius-00
 stand_alone: true
 ipr: trust200902
 area: Internet
-wg: anima Working Group
+wg: RADEXT Working Group
 kw: Internet-Draft
 cat: std
 submissionType: IETF
