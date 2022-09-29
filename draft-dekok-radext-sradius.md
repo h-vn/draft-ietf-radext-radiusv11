@@ -92,7 +92,7 @@ Unless otherwise described in this document, all RADIUS requirements apply to SR
 
 * RADIUS/TCP
 
-> RADIUS over the Transport Congestion Protocol [RFC6613]
+> RADIUS over the Transmission Control Protocol [RFC6613]
 
 * RADIUS/TLS
 
