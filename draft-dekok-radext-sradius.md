@@ -49,7 +49,7 @@ venue:
 
 --- abstract
 
-This document defines Secure RADIUS (SRADIUS), which is a transport profile for RADIUS.  There are three changes from traditional RADIUS transport protocols.  First, TLS transport is required and insecure transports are forbidden.  Second, the shared secret is no longer used, and all MD5-based packet signing and attribute obfuscation methods are therefore no longer necessary.  Finally, the now unused Authenticator field is repurposed to contain an explict request / response identifier, called a Token.
+This document defines Secure RADIUS (SRADIUS), which is a transport profile for RADIUS.  There are three changes from traditional RADIUS transport protocols.  First, TLS transport is required and insecure transports are forbidden.  Second, the RADIUS shared secret is no longer used, and all MD5-based packet signing and attribute obfuscation methods are therefore no longer necessary.  Finally, the now unused Authenticator field is repurposed to contain an explict request / response identifier, called a Token.
 
 SRADIUS connections can transport all RADIUS attributes.  Implementation of SRADIUS requires only minor changes to packet encoder and decoder functionality.  Nothing else is changed from traditional RADIUS.
 
@@ -57,7 +57,7 @@ SRADIUS connections can transport all RADIUS attributes.  Implementation of SRAD
 
 # Introduction
 
-The RADIUS protocol [RFC2865] uses MD5 [RFC1321] to sign packets, and to obfuscate certain attributes.  As noted in [RFC6151], MD5 is insecure and should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system.
+The RADIUS protocol [RFC2865] uses MD5 [RFC1321] to sign packets, and to obfuscate certain attributes.  Current cryptographic research shows that MD5 is insecure, and recommends that MD5 should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system.  There are many discussions of issues related to MD5 which we will not repeat here.  These discussions are most notably in [RRC6151], and in Section 3 of [RFC6421], among many others.
 
 This document proposes Secure RADIUS (SRADIUS), which is a transport profile for RADIUS.  Systems which implement SRADIUS are therefore capable of being FIPS-140 compliant.
 
@@ -67,9 +67,9 @@ The changes from traditional RADIUS transports are as follows:
 
 * TLS 1.3 or later is required,
 
-* As the security of the protocol now depends on TLS, all uses of the shared secret have been removed,
+* As the security of the protocol now depends on TLS, all uses of the RADIUS shared secret have been removed,
 
-* The now-unused Request and Response Authenticator field can be repurposed to carry an opaque Token which identifies requests and responses,
+* The now-unused Request and Response Authenticator fields have been repurposed to carry an opaque Token which identifies requests and responses,
 
 * The Message-Authenticator attribute ([RFC3579] Section 3.2) is not sent in any packet, and if received is ignored,
 
@@ -205,9 +205,9 @@ As the Message-Authentication-Code attribute is no longer used, the related MAC-
 
 ## CHAP, MS-CHAP, etc.
 
-While some attributes such as CHAP-Password, etc. depend on insecure cryptographic primitives such as MD5, these attributes are treated as opaque blobs when sent between a RADIUS client and server.  The attributes are not obfuscated, and they do not depend on the shared secret.
+While some attributes such as CHAP-Password, etc. depend on insecure cryptographic primitives such as MD5, these attributes are treated as opaque blobs when sent between a RADIUS client and server.  The attributes are not obfuscated, and they do not depend on the RADIUS shared secret.
 
-As a result, these attributes are unaffected by SRADIUS.  We reiterate that SRADIUS is a transport profile for RADIUS.  Other than Message-Authenticator, the meaning of all attributes in SRADIUS is identical to their meaning in RADIUS.  Only the "on the wire" encoding of some attributes change, and then only for attributes which are obfuscated using the shared secret.  Those obfuscated attributes are now protected by the modern cryptography in TLS, instead of an "ad hoc" approach using MD5.
+As a result, these attributes are unaffected by SRADIUS.  We reiterate that SRADIUS is a transport profile for RADIUS.  Other than Message-Authenticator, the meaning of all attributes in SRADIUS is identical to their meaning in RADIUS.  Only the "on the wire" encoding of some attributes change, and then only for attributes which are obfuscated using the RADIUS shared secret.  Those obfuscated attributes are now protected by the modern cryptography in TLS, instead of an "ad hoc" approach using MD5.
 
 An SRADIUS server can proxy CHAP, MS-CHAP, etc. without any issue.  An SRADIUS home server can authenticate CHAP, MS-CHAP, etc. without any issue.
 
