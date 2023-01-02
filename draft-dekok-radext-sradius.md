@@ -57,9 +57,9 @@ SRADIUS connections can transport all RADIUS attributes.  Implementation of SRAD
 
 # Introduction
 
-The RADIUS protocol [RFC2865] uses MD5 [RFC1321] to sign packets, and to obfuscate certain attributes.  Current cryptographic research shows that MD5 is insecure, and recommends that MD5 should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system.  There are many discussions of issues related to MD5 which we will not repeat here.  These discussions are most notably in [RRC6151], and in Section 3 of [RFC6421], among many others.
+The RADIUS protocol [RFC2865] uses MD5 [RFC1321] to sign packets, and to obfuscate certain attributes.  Current cryptographic research shows that MD5 is insecure, and recommends that MD5 should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system.  There are many prior discussions of MD5 insecurities which we will not repeat here.  These discussions are most notably in [RRC6151], and in Section 3 of [RFC6421], among many others.
 
-This document proposes Secure RADIUS (SRADIUS), which is a transport profile for RADIUS.  Systems which implement SRADIUS are therefore capable of being FIPS-140 compliant.
+This document proposes Secure RADIUS (SRADIUS), which is a transport profile for RADIUS that removes the dependency on MD5.  Systems which implement SRADIUS are therefore capable of being FIPS-140 compliant.
 
 The changes from traditional RADIUS transports are as follows:
 
@@ -77,13 +77,13 @@ The changes from traditional RADIUS transports are as follows:
 
 * All other attributes including CHAP, MS-CHAP, and MS-CHAPv2 can still be carried inside of SRADIUS.
 
-If a home server chooses to implement SRADIUS, it can also choose to also require full FIPS-140 compliance.  In which case the home server will not support CHAP or MS-CHAP.  However, it is still possible for a FIPS-140 compliant home server to accept authentication methods which depend on MD4 or MD5, so long as those methods are passed somehow to a secondary server which supports them.
+If a home server chooses to implement SRADIUS, it can also choose to also require full FIPS-140 compliance.  In which case, the home server will not support CHAP or MS-CHAP.  However, it is still possible for a FIPS-140 compliant home server to accept authentication methods which depend on MD4 or MD5, so long as those methods are passed somehow to a secondary server which supports them.
 
-We note that the decision to support (or not) any authentication method is entirely site local, and is not a requirement of the SRADIUS transport.  As a transport profile for RADIUS, SRADIUS explicitly does not modify the content or meaning of any RADIUS attribute.
+We note that the decision to support (or not) any authentication method is entirely site local, and is not a requirement of SRADIUS.  As a transport profile for RADIUS, SRADIUS explicitly does not modify the content or meaning of any RADIUS attribute other than Message-Authenticator.
 
-We also note that any proxies which accept or originate SRADIUS connections are able to transport CHAP and MS-CHAP without issue.
+Since SRADIUS does not modify the meaning of RADIUS attributes, any proxies which accept or originate SRADIUS connections are able to transport CHAP and MS-CHAP without issue.
 
-Unless otherwise described in this document, all RADIUS requirements apply to SRADIUS.  That is, SRADIUS is a transport profile for RADIUS.  It is not a new protocol, and it is not an extension to the RADIUS protocol.  SRADIUS does not change the RADIUS packet format, attribute format, etc.
+Unless otherwise described in this document, all RADIUS requirements apply to SRADIUS.  That is, SRADIUS is a transport profile for RADIUS.  It is not a new protocol, and it is not an extension to the RADIUS protocol.  SRADIUS does not change the RADIUS packet format, attribute format, etc.  Future RADIUS extensions can be automatically used by SRADIUS.
 
 # Terminology
 
@@ -111,7 +111,7 @@ Unless otherwise described in this document, all RADIUS requirements apply to SR
 
 * SRADIUS
 
-> The Secure RADIUS protocol ("S" RADIUS), as defined in this document.  We use SRADIUS interchangeable for TLS and for DTLS transport.
+> The Secure RADIUS protocol (pronounced "S" RADIUS), as defined in this document.  We use SRADIUS interchangeable for TLS and for DTLS transport.
 
 * TLS
 
@@ -119,7 +119,7 @@ Unless otherwise described in this document, all RADIUS requirements apply to SR
 
 # The SRADIUS Transport profile for RADIUS
 
-SRADIUS is a transport profile for RADIUS.   In addition to defining the transport, we also discuss how the encoding of some attributes is changed when transported in SRADIUS.  Any field or attribute not mentioned here is unchanged from RADIUS.
+SRADIUS is a transport profile for RADIUS.   In addition to defining the transport, we also discuss how the encoding of some attributes are changed when transported in SRADIUS.  Any field or attribute not mentioned here is unchanged from RADIUS.
 
 ## Transport
 
@@ -133,25 +133,52 @@ SRADIUS implementations MUST support TLS-PSK.  The default profile is to have as
 
 The Request and Response Authenticator fields MUST NOT be calculated as described in any previous RADIUS specification.  Instead, those fields are not used to sign packets.  That 16-octet portion of the packet header is now repurposed as two logical subfields:
 
-* 8 octets of opaque Token used to match requests and responses,
+* 4 octets of opaque Token used to match requests and responses,
 
-* 8 octets of Reserved.  These octets MUST be set to zero when sending any SRADIUS packet.  These octets MUST be ignored when receiving any SRADIUS packet.  These octets are reserved for future protocol extensions.
+* 12 octets of Reserved.
 
 ```
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|       Token ...
+|       Token                                                   |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                                                                |
+|                                                                
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|       Reserved
+        Reserved
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
                                                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
 
-The Token field MUST be different for every unique packet sent over a particular SRADIUS connection.  This unique value can be used to match responses to requests, and to identify duplicate requests.  Other than those two requirements, there is no special meaning for the Token field.
+Token
+
+> The Token field is four octets, and aids in matching requests and
+> replies.  The RADIUS server can detect a duplicate request if it receives
+> the same Token value for two packets on a particular connection.
+>
+> All request / reply tracking MUST be done only on the Token field,
+> all other fields in the RADIUS packet header are ignored for the
+> purposes of deduplication.
+>
+> All deduplication MUST be done on a per-connection basis.  If two
+> RADIUS packets which are received on different connections contain
+> the same Token value, then those packets MUST be treated as distinct
+> (i.e. different) packets.
+>
+> The Token field MUST be different for every unique packet sent over
+> a particular SRADIUS connection.  This unique value can be used to
+> match responses to requests, and to identify duplicate requests.
+> Other than those two requirements, there is no special meaning for
+> the Token field.
+
+Reserved
+
+> The Reserved field is twelve (12) octets in length.
+>
+> These octets MUST be set to zero when sending any SRADIUS packet.
+> These octets MUST be ignored when receiving any SRADIUS packet.
+> These octets are reserved for future protocol extensions.
 
 ### Sending Packets
 
@@ -159,17 +186,15 @@ The Token field MUST change for every new SRADIUS packet which is sent.  For DTL
 
 The Token MUST be different for different packets on the same connection.
 
-It is RECOMMENDED that the Token field be a implemented as a 64-bit counter.  Such a counter SHOULD be initialized from a random number generator whenever a client reboots.  It is NOT RECOMMENDED to use the current time as the seed for the random number generator, or for the initial Token value unless that time is carried forward across reboots via a hardware clock.  Without a hardware clock, the systems value for the current time is likely to reset to a pre-set fixed value.
+It is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized from a random number generator whenever a new connection is opened.
 
-The counter SHOULD be unique per connection, and SHOULD be initialized to a different value for each connection.  The counter may be globally unique to an implementation, but having a unique counter per connection is acceptable.
+### Receiving Packets
 
-### Recieving Packets
-
-A system which recieves SRADIUS packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the SRADIUS system SHOULD NOT do deduplication.
+A system which receives SRADIUS packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the SRADIUS system SHOULD NOT do deduplication.
 
 In normal RADIUS, the Identifier field can be the same for different types of packets on the same connection, e.g. for Access-Request and Accounting-Request.  This overlap leads to increased complexity for RADIUS clients and servers, as the Identifier field is not, in fact, a unique identifier.  Implementations of RADIUS therefore need do deduplication across multiple fields of the RADIUS packet header, which can be complex.
 
-For SRADIUS, implementations MUST do deduplication solely on the Token field on a per-connection basis.  This change from RADIUS simplifies implementations.  In addition, a unique 64-bit counter is more than sufficient to uniquely identify packets.
+For SRADIUS, implementations MUST do deduplication solely on the Token field on a per-connection basis.  A RADIUS server MUST treat the Token as an opaque field with no interpretation.  While the recommendation above is for the sender to use a counter, other implemnetations are both possible and valid.
 
 This change from RADIUS means that the Identifier field is no longer useful.  It is RECOMMENDED that the Identifier field be set to zero for all SRADIUS packets.  In order to stay close to RADIUS, replies MUST use the same Identifier as was seen in the corresponding request.  There is no reason to make major changes to the RADIUS packet header.
 
@@ -177,17 +202,31 @@ This change from RADIUS means that the Identifier field is no longer useful.  It
 
 Most attributes in RADIUS have no special encoding "on the wire", or any special meaning between client and server.  Unless discussed in this section, all RADIUS attributes are unchanged in SRADIUS.  This requirement includes attributes which contain a tag [RFC2868].
 
-## Obfuscated attributes such as User-Password and Tunnel-Password
+## Obfuscated Attributes
+
+With SRADIUS, there is no need to hide the contents of an attribute on a hop-by-hop basis.  The TLS transport ensures that all attribute contents are hidden from any observer
 
 Attributes which are obfuscated with MD5 no longer have the obfuscation step applied in SRADIUS.  Instead, there are simply encoded as their values, as with any other attribute.  Their encoding method MUST follow the encoding for the underlying data type, with any encryption / obfuscation step omitted.
 
-We note that there is often concern in RADIUS that passwords are sent "in cleartext" across the network.  This allegation was never true for RADIUS, and is still untrue for SRADIUS.  While passwords are encoded in packets as strings, the packets (and thus passwords) are protected by TLS.  The same TLS which protects passwords used for web logins, e-mail reception and sending, etc.  As a result, any claims that passwords are sent "in the clear" are false.
+We understand that there is often concern in RADIUS that passwords are sent "in cleartext" across the network.  This allegation was never true for RADIUS, and is still untrue for SRADIUS.  While passwords are encoded in packets as strings, the packets (and thus passwords) are protected by TLS.  The same TLS which protects passwords used for web logins, e-mail reception and sending, etc.  As a result, any claims that passwords are sent "in the clear" are false.
+
+Any PSK used for TLS MUST NOT be used for attribute obfuscation in place of the RADIUS shared secret.
+
+### User-Password
 
 The User-Password attribute ([RFC2865] Section 5.2) MUST be encoded the same as any other attribute of data type 'text' ([RFC8044] Section 3.4), e.g. User-Name ([RFC2865] Section 5.1).
 
+### Tunnel-Password
+
 The Tunnel-Password attribute ([RFC2868] Section 3.5) MUST be encoded the same as any other attribute of data type 'text' which contains a tag, such as Tunnel-Client-Endpoint ([RFC2868] Section 3.3).  Since the attribute is no longer obfuscated, there is no need for a salt field or Data-Length fields as described in [RFC2868] Section 3,5, and the textual value can simply be encoded as-is.
 
+### Vendor-Specific Attributes
+
 Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as per their base data type.  Specifically, the MS-MPPE-Send-Key and MS-MPPE-Recv-Key attributes ([RFC2548] Section 2.4) MUST be encoded as any other attribute of data type 'string' ([RFC8044] Section 3.5).
+
+We note that as SRADIUS no longer uses RADIUS shared secrets, it is impossible for any Vendor-Specific attribute to be obfuscated using the previous methods defined for RADIUS.
+
+If a vendor wishes to hide the contents of a Vendor-Specific attribute, they are free to do so.  However, the TLS PKS MUST NOT be used for this purpose.  It is RECOMMENDED that vendors choose a method which both meets FIPS-140 requirements, and which allows for crypto-agility.
 
 ## Message-Authenticator
 
@@ -247,8 +286,9 @@ SRADIUS/TCP - TBD
 
 In hindsight, the decision to retain MD5 for RADIUS/TLS was likely wrong.  It was an easy decision in the short term, but it has caused ongoing problems which this document addresses.
 
+Thanks to Bernard Aboba, Karri Huhtanen, and Alexander Clouter for reviews and feedback.
+
 # Changelog
 
 
 --- back
-
