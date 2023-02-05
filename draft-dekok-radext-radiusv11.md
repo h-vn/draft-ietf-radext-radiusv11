@@ -1,7 +1,7 @@
 ---
-title: Secure RADIUS
-abbrev: SRADIUS
-docname: draft-dekok-radext-sradius-00
+title: RADIUS/TLS Version 1.1
+abbrev: RADIUSv11
+docname: draft-dekok-radext-radiusv11-00
 
 stand_alone: true
 ipr: trust200902
@@ -45,7 +45,7 @@ informative:
 venue:
   group: RADEXT
   mail: radext@ietf.org
-  github: freeradius/sradius.git
+  github: freeradius/radiusv11.git
 
 --- abstract
 
