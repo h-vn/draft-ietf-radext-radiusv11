@@ -1,7 +1,7 @@
 ---
 title: RADIUS/TLS Version 1.1
 abbrev: RADIUSv11
-docname: draft-dekok-radext-radiusv11-00
+docname: draft-dekok-radext-radiusv11-01
 updates: RFC6613,RFC7360
 
 stand_alone: true
@@ -169,7 +169,6 @@ Where ALPN is configured, we have the following choices:
 
 Clients or servers supporting this specification do so by extending their TLS configuration through the addition of a new configuration flag, called "radius/1.1" here.  The exact name given below does not need to be used, but it is RECOMMENDED to use similar names in user interfaces, in order to provide consistent terminology for administrators.  This flag controls the use (or not) of the application-layer protocol defined by this specification.
 
-~~~~
 Configuration Flag Name
 
 > radius/1.1
@@ -208,7 +207,6 @@ Allowed Values
 >> If no ALPN is received, or "radius/1.1" is not received via ALPN,
 >> the system MUST log an informative message and close the TLS
 >> connection.
-~~~~
 
 Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  The definition of the "radius/1.1" transport profile is given below.
 
