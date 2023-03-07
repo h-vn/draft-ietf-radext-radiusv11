@@ -1,7 +1,7 @@
 ---
 title: RADIUS/TLS Version 1.1
 abbrev: RADIUSv11
-docname: draft-dekok-radext-radiusv11-01
+docname: draft-dekok-radext-radiusv11-02
 updates: RFC6613,RFC7360
 
 stand_alone: true
@@ -63,7 +63,7 @@ This extension can be seen as a transport profile for RADIUS, as it is not an en
 
 The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Current cryptographic research shows that MD5 is insecure, and recommends that MD5 should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system.  There are many prior discussions of MD5 insecurities which we will not repeat here.  These discussions are most notably in [RFC6151], and in Section 3 of {{RFC6421}}, among many others.
 
-This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS which removes the dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  To support this claim, a preliminary implementation of this extension was done in an Open Source RADIUS server was done.  Formatted as a "patch", the code changes comprised approximately 2,000 lines of code.
+This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS which removes the dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  To support this claim, a preliminary implementation of this extension was done in an Open Source RADIUS server.  Formatted as a "patch", the code changes comprised approximately 2,000 lines of code.  This effort shows that the changes to RADIUS are minimal, and well understood.
 
 The changes from traditional TLS-based transports for RADIUS are as follows:
 
@@ -74,6 +74,8 @@ The changes from traditional TLS-based transports for RADIUS are as follows:
 * all uses of the RADIUS shared secret have been removed,
 
 * The now-unused Request and Response Authenticator fields have been repurposed to carry an opaque Token which identifies requests and responses,
+
+* There are now also Client Security and Server Security flags in the packet header, which allow clients or servers to indicate the security of packets,
 
 * The Message-Authenticator attribute ({{RFC3579}} Section 3.2) is not sent in any packet, and if received is ignored,
 
@@ -141,29 +143,29 @@ We define an ALPN extension for TLS-based RADIUS transports.   In addition to de
 
 This document defines two ALPN protocol names which can be used to negotiate the use (or not) of this specification:
 
-* radius/1
+> radius/1
+>
+>> Traditional RADIUS/TLS or RADIUS/DTLS.
 
-> Traditional RADIUS/TLS or RADIUS/DTLS.
-
-* radius/1.1
-
-> This protocol defined by specification.
+> radius/1.1
+>
+>> This protocol defined by specification.
 
 Where ALPN is not configured or received in a TLS connection, systems supporting ALPN MUST assume that "radius/1" is being used.
 
 Where ALPN is configured, we have the following choices:
 
-* use radius/1 only.
+> use radius/1 only.
+>
+>> There is no need in this case to use ALPN, but this configuration is included for completeness
 
-> There is no need in this case to use ALPN, but this configuration is included for completeness
+> use radius/1.1 only
+>
+>> ALPN is required, and this configuration must be explicitly enabled by an administrator
 
-* use radius/1.1 only
-
-> ALPN is required, and this configuration must be explicitly enabled by an administrator
-
-* negotiate either radius/1 or radius/1.1
-
-> Where both ends support radius/1.1, that extension MUST be used.  There is no reason to negotiate a feature and then not use it.
+> negotiate either radius/1 or radius/1.1
+>
+>> Where both ends support radius/1.1, that extension MUST be used.  There is no reason to negotiate a feature and then not use it.
 
 ### Configuration of ALPN
 
@@ -175,31 +177,19 @@ Configuration Flag Name
 
 Allowed Values
 
-> forbid
+> forbid - Forbid the use of RADIUS/1.1
 >
->> Meaning
->>
->> Forbid the use of this specification.
->>
 >> The system MAY signal ALPN via using only the "radius/1" protocol
 >> name.  If ALPN is not used, the system MUST use RADIUS/TLS or
 >> RADIUS/DTLS as per prior specifications.
 
-> allow
+> allow - Allow (or negotiate) the use of RADIUS/1.1
 >
->> Meaning
->>
->> Allow (or negotiate) the use of this specification.
->>
 >> The system MUST use ALPN to signal that both "radius/1" and
 >> "radius/1.1" can be used.
 >
-> require
+> require -  Require the use of RADIUS/1.1
 >
->> Meaning
->>
->> Require the use of this specification.
->>
 >> The system MUST use ALPN to signal that "radius/1.1" is being used.
 >>
 >> The "radius/1" ALPN protocol name MUST NOT be sent by the system.
@@ -234,9 +224,11 @@ This section describes the application-layer data which is sent inside of (D)TLS
 
 ## Request and Response Authenticator fields
 
-As packets are no longer signed with MD5, the Request and Response Authenticator fields MUST NOT be calculated as described in any previous RADIUS specification.  That 16-octet portion of the packet header is now repurposed into two logical subfields, as given below:
+As packets are no longer signed with MD5, the Request and Response Authenticator fields MUST NOT be calculated as described in any previous RADIUS specification.  That 16-octet portion of the packet header is now repurposed into three logical subfields, as given below:
 
 * 4 octets of opaque Token used to match requests and responses,
+
+* 1 octet of Flags
 
 * 12 octets of Reserved.
 
@@ -246,14 +238,14 @@ As packets are no longer signed with MD5, the Request and Response Authenticator
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |       Token                                                   |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                                                                
+|    Flags      |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         Reserved
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
                                                                 |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ~~~~
-{: #Token title="The 16 octet Token plus Reserved field."}
+{: #Token title="The modified Authenticator Field."}
 
 Token
 
@@ -281,15 +273,28 @@ Token
 > packet MUST NOT interpret its value as anything other than an opaque
 > token.
 
+Flags
+
+> The Flag field is one octet in length, and contains various flags,
+> as defined below.
+
 Reserved
 
-> The Reserved field is twelve (12) octets in length.
+> The Reserved field is eleven (11) octets in length.
 >
 > These octets MUST be set to zero when sending a packet.
 > These octets MUST be ignored when receiving a packet.
 > These octets are reserved for future protocol extensions.
 
+When RADIUS/1.1 is used, the processing of RADIUS packets is modified from standard RADIUS.  The Request Authenticator and Response Authenticator fields are no longer used.  Any operations which depend on those fields MUST NOT be performed.  As packet signing and security are handled by the TLS layer, RADIUS-specific cryptographic primitives are no longer used.
+
+## The Token Field
+
+This section describes in more detail how the Token field is used.
+
 ### Sending Packets
+
+A client which sends packets uses the Token field to increase the number of RADIUS packets which can be sent over one connection.  The Flags field is used to indicate path security for packets.
 
 The Token field MUST change for every new unique packet which is sent.  For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in {{RFC2866}} Section 5.2), the Token value MUST be changed.
 
@@ -306,6 +311,69 @@ In normal RADIUS, the Identifier field can be the same for different types of pa
 When using radius/1.1, implementations MUST instead do deduplication solely on the Token field, on a per-connection basis.  A server MUST treat the Token as being an opaque field with no intrinsic meaning.  While the recommendation above is for the sender to use a counter, other implementations are possible, valid, and permitted.  For example, a system could use a pseudo-random number generator with a long period to generate unique values for the Token field.
 
 This change from RADIUS means that the Identifier field is no longer useful.  It is RECOMMENDED that the Identifier field be set to zero for all radius/1.1 packets.  In order to stay close to RADIUS, we still require that replies MUST use the same Identifier as was seen in the corresponding request.  There is no reason to make major changes to the RADIUS packet header.
+
+## The Flags Field
+
+The Flags field contains flags which describe or control RADIUS path-level security.  The purpose of the Flags field is to help systems migrate to using more modern and secure transports.
+
+The Flags field is defined as follows:
+
+~~~~
+ 0
+ 0 1 2 3 4 5 6 7
++-+-+-+-+-+-+-+-+
+|     R     |C|S|
++-+-+-+-+-+-+-+-+
+~~~~
+{: #Flags title="The Flags Field."}
+
+R - Reserved
+
+> This field must be set to zero when sending a packet.
+> This field must be ignored when receiving a packet.
+> This field is reserved for future protocol extensions.
+
+C - Client Security
+
+> The Client Security flag is a one-bit field which indicates security of the client to server transport across multiple hops.  This flag is set in packets sent by clients, and MUST NOT be set in packets sent by servers.
+>
+> A client which originates packets over a RADIUS/1.1 connection SHOULD set this flag to indicate that the connection is secured.
+>
+> A proxy which receives packets over RADIUS/TLS or RADIUS/DTS SHOULD set this flag when it forwards those packets over RADIUS/1.1 connections.
+>
+> A proxy which receives packets over IPSec MAY set this flag when it forwards packets over RADIUS/1.1 connections.  However, the RADIUS
+> proxy is typically unaware of underlying network security, and it is possible for the network to change to being insecure, without the RADIUS proxy being updated to know about that change.
+>
+> A proxy which receives packets over a secure management network and forwards them over insecure networks via RADIUS/1.1 MAY set
+> this flag when it forwards packets over RADIUS/1.1 connections.  This flag may be set even if the underlying transport is RADIUS/UDP or RADIUS/TCP.
+> This situation typically occurs when an organization has an internal management network which uses RADIUS/UDP, but it then sometimes forwards packets
+> to other, outside, organizations over a secure connection.
+>
+> A proxy which otherwise receives packets over RADIUS/UDP or RADIUS/TCP networks MUST NOT set this flag when it forwards packets over RADIUS/1.1 connections.
+
+S - Server Security
+
+> The Server Security flag is a one-bit field which indicates the level of security desired by the server for packets which are sent to it.
+>
+> A server MAY set this flag when sending packets to clients.
+>
+> Clients receiving packets with the Server Security flag set MUST use a secure connection for any retransmissions of the packet in question.
+>
+> Clients receiving an Access-Challenge packet with the Server Security flag set MUST use a secure connection for any subsequent Access-Request packet which is sent in response to the Access-Challenge.
+>
+> Due to the underlying limitations of the network, clients MAY use RADIUS/TLS or RADIUS/DTLS for these retransmissions or Access-Request packets.  There is no requirement to use a RADIUS/1.1 connection.
+>
+> If no secure connection is available, then the client MUST treat this situation as if no connection to the server are available.  Note that this treatment is on a packet-by-packet basis.  Other (unrelated) packets without the Server Security flag MAY be sent over insecure connections.  The client SHOULD NOT mark the server as being "down" or unavailable, unless it is not possible to send any packets to that server.
+>
+> Proxies which receive response packets from a server containing the Server Security flag MUST set the flag when returning those responses to a client over a RADIUS/1.1 connection.
+
+We recognize that the above requirements are not enough to fully secure all possible RADIUS packets.  However, these requirements allow systems to indicate that they are using, or wish to use secure transports, an ability which was not present in RADIUS until now.
+
+These flags also provide clients and servers information about the network which was previously inaccessible.  Servers receiving packets with the Client Security flag set know that all possible paths from client to server have been secured.  Clients receiving packets with the Server Security flag set know that all possible paths from server to client have been secured.
+
+It is also possible for clients or proxies to require secure transport for packets being sent to specific realms.  Proxies which forward traffic from RADIUS/UDP or RADIUS/TCP clients to RADIUS/1.1 servers SHOULD have a configuration option which allows the proxy to set the Client Security flag.  This configuration option SHOULD be associated with the client, as it indicates that the client network is secure despite the use of insecure transports.  This configuration option MUST NOT be on the server side where RADIUS/1.1 is being used.  The "client network is secure" flag is a property of the client network, and not of the RADIUS/1.1 connection to the server.
+
+The goal of these flags is to allow the gradual migration of RADIUS traffic from a mix of secure and insecure transport, to ubiqituous and mandated secure transport.  We state explicitly that these flags are not intended to mandate use of the RADIUS/1.1 transport profile, or to exclude the use of other transport protocols for RADIUS.
 
 # Attribute handling
 
@@ -407,19 +475,9 @@ Reference: ("radius/1.1")  This document
 
 # Issues and Questions
 
-Should we add a header flag which says "require TLS transport"?  This can be set by client to indicate that the data should not be sent over UDP/TCP at any stage of proxying.  It can also be added by a server to indicate that the packet contains similar data.
-
-One use-case for this is attributes which require the protection of TLS, but which do not have any RADIUS obfuscation methods defined.
-
 As a related note, do we want to allow new specifications to define attributes containing private information, but where we do not define RADIUS obfuscation?
 
 Maybe we want to reserve part of the attribute space (or extended attribute flags) for attributes which require TLS.
-
-It is difficult for a client to know when to set this flag, unless there is a specification which requires secure transport of clear-text private information.  Servers can set the flag in similar situations.
-
-Perhaps a home server could require that the flag is set for all packets sent to it?
-
-
 
 # Acknowledgements
 
@@ -427,16 +485,28 @@ In hindsight, the decision to retain MD5 for RADIUS/TLS was likely wrong.  It wa
 
 Thanks to Bernard Aboba, Karri Huhtanen, and Alexander Clouter for reviews and feedback.
 
+The Flags field originated from a suggestion by Stefan Winter.
+
 # Changelog
 
-* draft-dekok-radext-sradius-00
+draft-dekok-radext-sradius-00
 
 > Initial Revision
 
-* draft-dekok-radext-radiusv11-00
+draft-dekok-radext-radiusv11-00
 
 > Use ALPN from RFC 7301, instead of defining a new port.  Drop the name "SRADIUS".
 >
 > Add discussion of Original-Packet-Code
+
+draft-dekok-radext-radiusv11-01
+
+> Update formatting.
+
+draft-dekok-radext-radiusv11-02
+
+> Add Flag field and description.
+>
+> Minor rearrangements and updates to text.
 
 --- back
