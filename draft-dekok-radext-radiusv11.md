@@ -218,6 +218,14 @@ Implementations of this specification MUST support TLS-PSK.
 
 Any PSK used for TLS MUST NOT be used for attribute obfuscation in place of the RADIUS shared secret.  Any PSK used for TLS MUST NOT be the same as a RADIUS shared secret which is used for RADIUS/UDP or RADIUS/TLS.
 
+## Session Resumption
+
+{{RFC 7301}} Section 3.1 states that ALPN is negotiated on each connection, even if session resumption is used:
+
+> When session resumption or session tickets (RFC5077) are used, the previous contents of this extension are irrelevant, and only the values in the new handshake messages are considered.
+
+In order to prevent down-bidding attacks, RADIUS servers which negotiate radius/1.1 MUST associate that information with the session ticket.  On session resumption, the server MUST advertise only the capability to do radius/1.1 for that session.  That is, even if the server configuration permits both radius/1 and radius/1.1 for new connections, the server MUST NOT permit radius/1 for sessions which had previously negotiated radius/1.1.
+
 # Definition of radius/1.1
 
 This section describes the application-layer data which is sent inside of (D)TLS when using the radius/1.1 protocol.  Unless otherwise discussed herein, the application-layer data is unchanged from traditional RADIUS.  This protocol is only used when "radius/1.1" has been negotiated by both ends of a connection.
@@ -298,7 +306,7 @@ A client which sends packets uses the Token field to increase the number of RADI
 
 The Token field MUST change for every new unique packet which is sent.  For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in {{RFC2866}} Section 5.2), the Token value MUST be changed.
 
-The Token MUST be different for different packets on the same connection.  That is, if two packets are bit-for-bit identical (other than the Token field), then those two packets may have the same token value.  If the two packets have any differences, then the Token values for those two packets is required to be different.
+The Token MUST be different for different packets on the same connection.  If a packet is retransmitted without any changes, then the retransmitted packet MUST use the same token value.  If the two packets have any differences, then the Token values for those two packets is required to be different.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet sent has a unique Token value.
 
 For simplicity, it is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized from a random number generator whenever a new connection is opened.  The counter can then be incremented for every new packet which is sent.  As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value to zero.
 
@@ -391,6 +399,14 @@ We understand that there is often concern in RADIUS that passwords are sent "in 
 
 The User-Password attribute ({{RFC2865}} Section 5.2) MUST be encoded the same as any other attribute of data type 'text' ({{RFC8044}} Section 3.4), e.g. User-Name ({{RFC2865}} Section 5.1).
 
+The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865}} Section 5.2 for compatibility with legacy transports.
+
+Despite the requirement of {{RFC8044}} Section 3.4 that 'text' data types be UTF-8 data, proxies MUST NOT interpret or modify the content of the User-Password attribute.  Validation and interpretation of the User-Password is the role of the home server, and there is no need for the proxy to do anything other than transport that data.
+
+### CHAP-Challenge
+
+{{RFC2865}} Section 5.2 allows for the CHAP challenge to be taken from either the CHAP-Challenge attribute ({{RFC2865}} Section 5.40), or the Request Authenticator field.  Since radius/1.1 connections no longer use a Request Authenticator field, proxies may receive an Access-Request containing a CHAP-Password attribute ({{RFC2865}} Section 5.2) but without a CHAP-Challenge attribute ({{RFC2865}} Section 5.40).  Proxies which forward that CHAP-Password attribute over a raedius/1.1 connection MUST create a CHAP-Challenge attribute in the proxied packet using the contents from the Request Authenticator.
+
 ### Tunnel-Password
 
 The Tunnel-Password attribute ({{RFC2868}} Section 3.5) MUST be encoded the same as any other attribute of data type 'text' which contains a tag, such as Tunnel-Client-Endpoint ({{RFC2868}} Section 3.3).  Since the attribute is no longer obfuscated, there is no need for a Salt field or Data-Length fields as described in {{RFC2868}} Section 3,5, and the textual value of the password can simply be encoded as-is.
@@ -399,9 +415,7 @@ The Tunnel-Password attribute ({{RFC2868}} Section 3.5) MUST be encoded the same
 
 Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as per their base data type.  Specifically, the MS-MPPE-Send-Key and MS-MPPE-Recv-Key attributes ({{RFC2548}} Section 2.4) MUST be encoded as any other attribute of data type 'string' ({{RFC8044}} Section 3.5).
 
-We note that as the RADIUS shared secret is no longer used, it is impossible for any Vendor-Specific attribute to be obfuscated using the previous methods defined for RADIUS.
-
-If a vendor wishes to hide the contents of a Vendor-Specific attribute, they are free to do so using vendor-defined methods.  However, such methods are unnecessary due to the use of (D)TLS transport.
+We note that as the RADIUS shared secret is no longer used, it is no longer possible or necessary for any attribute to be obfuscated on a hop-by-hop basis using the previous methods defined for RADIUS.
 
 ## Message-Authenticator
 
