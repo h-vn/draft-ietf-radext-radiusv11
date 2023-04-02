@@ -105,35 +105,35 @@ Unless otherwise described in this document, all RADIUS requirements apply to th
 
 * ALPN
 
-> Application-Layer Protocol Negotiation, as defined in {{RFC7301}}
+>> Application-Layer Protocol Negotiation, as defined in {{RFC7301}}
 
 * RADIUS
 
-> The Remote Authentication Dial-In User Service protocol, as defined in {{RFC2865}}, {{RFC2865}}, and {{RFC5176}} among others.
+>> The Remote Authentication Dial-In User Service protocol, as defined in {{RFC2865}}, {{RFC2865}}, and {{RFC5176}} among others.
 
 * RADIUS/UDP
 
-> RADIUS over the User Datagram Protocol as define above.
+>> RADIUS over the User Datagram Protocol as define above.
 
 * RADIUS/TCP
 
-> RADIUS over the Transmission Control Protocol {{RFC6613}}
+>> RADIUS over the Transmission Control Protocol {{RFC6613}}
 
 * RADIUS/TLS
 
-> RADIUS over the Transport Layer Security protocol {{RFC6614}}
+>> RADIUS over the Transport Layer Security protocol {{RFC6614}}
 
 * RADIUS/DTLS
 
-> RADIUS over the Datagram Transport Layer Security protocol  {{RFC7360}}
+>> RADIUS over the Datagram Transport Layer Security protocol  {{RFC7360}}
 
 * RADIUSv11
 
-> The ALPN protocol extenion defined in this document, which stands for "RADIUS version 1.1".  We use RADIUSv11 to refer interchangeably to TLS and for DTLS transport.
+>> The ALPN protocol extenion defined in this document, which stands for "RADIUS version 1.1".  We use RADIUSv11 to refer interchangeably to TLS and for DTLS transport.
 
 * TLS
 
-> the Transport Layer Security protocol.  Generally when we refer to TLS in this document, we are referring to TLS or DTLS transport.
+>> the Transport Layer Security protocol.  Generally when we refer to TLS in this document, we are referring to TLS or DTLS transport.
 
 # The RADIUSv11 Transport profile for RADIUS
 
@@ -143,7 +143,7 @@ We define an ALPN extension for TLS-based RADIUS transports.   In addition to de
 
 This document defines two ALPN protocol names which can be used to negotiate the use (or not) of this specification:
 
-> radius/1
+> radius/1.0
 >
 >> Traditional RADIUS/TLS or RADIUS/DTLS.
 
@@ -151,11 +151,11 @@ This document defines two ALPN protocol names which can be used to negotiate the
 >
 >> This protocol defined by specification.
 
-Where ALPN is not configured or received in a TLS connection, systems supporting ALPN MUST assume that "radius/1" is being used.
+Where ALPN is not configured or received in a TLS connection, systems supporting ALPN MUST assume that "radius/1.0" is being used.
 
 Where ALPN is configured, we have the following choices:
 
-> use radius/1 only.
+> use radius/1.0 only.
 >
 >> There is no need in this case to use ALPN, but this configuration is included for completeness
 
@@ -163,7 +163,7 @@ Where ALPN is configured, we have the following choices:
 >
 >> ALPN is required, and this configuration must be explicitly enabled by an administrator
 
-> negotiate either radius/1 or radius/1.1
+> negotiate either radius/1.0 or radius/1.1
 >
 >> Where both ends support radius/1.1, that extension MUST be used.  There is no reason to negotiate a feature and then not use it.
 
@@ -179,20 +179,20 @@ Allowed Values
 
 > forbid - Forbid the use of RADIUS/1.1
 >
->> The system MAY signal ALPN via using only the "radius/1" protocol
+>> The system MAY signal ALPN via using only the "radius/1.0" protocol
 >> name.  If ALPN is not used, the system MUST use RADIUS/TLS or
 >> RADIUS/DTLS as per prior specifications.
 
 > allow - Allow (or negotiate) the use of RADIUS/1.1
 >
->> The system MUST use ALPN to signal that both "radius/1" and
+>> The system MUST use ALPN to signal that both "radius/1.0" and
 >> "radius/1.1" can be used.
 >
 > require -  Require the use of RADIUS/1.1
 >
 >> The system MUST use ALPN to signal that "radius/1.1" is being used.
 >>
->> The "radius/1" ALPN protocol name MUST NOT be sent by the system.
+>> The "radius/1.0" ALPN protocol name MUST NOT be sent by the system.
 >>
 >> If no ALPN is received, or "radius/1.1" is not received via ALPN,
 >> the system MUST log an informative message and close the TLS
@@ -202,9 +202,9 @@ Once a system has been configured to support ALPN, it is negotiated on a per-con
 
 ## Negotiation
 
-If the "radius/1.1" flag is set to "allow", then both "radius/1" and "radius/1.1" application protocols MUST be signalled via ALPN.  Where a system sees that both ends of a connection support radius/1.1, then it MUST be used.  There is no reason to negotiate an extension and the refuse to use it.
+If the "radius/1.1" flag is set to "allow", then both "radius/1.0" and "radius/1.1" application protocols MUST be signalled via ALPN.  Where a system sees that both ends of a connection support radius/1.1, then it MUST be used.  There is no reason to negotiate an extension and the refuse to use it.
 
-If a systems supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as if the other end had sent the ALPN protocol name "radius/1".
+If a systems supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as if the other end had sent the ALPN protocol name "radius/1.0".
 
 If a system determines that there are no compatible application protocol names, then it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  The connection MUST then be torn down.
 
@@ -364,8 +364,6 @@ S - Server Security
 > The Server Security flag is a one-bit field which indicates the level of security desired by the server for packets which are sent to it.
 >
 > A server MAY set this flag when sending packets to clients.
->
-> Clients receiving packets with the Server Security flag set MUST use a secure connection for any retransmissions of the packet in question.
 >
 > Clients receiving an Access-Challenge packet with the Server Security flag set MUST use a secure connection for any subsequent Access-Request packet which is sent in response to the Access-Challenge.
 >
