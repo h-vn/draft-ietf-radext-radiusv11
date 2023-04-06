@@ -352,7 +352,7 @@ Attributes which are obfuscated with MD5 no longer have the obfuscation step app
 
 We understand that there is often concern in RADIUS that passwords are sent "in cleartext" across the network.  This allegation was never true for RADIUS, and definitely untrue when (D)TLS transport is used.  While passwords are encoded in packets as strings, the packets (and thus passwords) are protected by TLS.  For the unsure reader this protocol is the same TLS which protects passwords used for web logins, e-mail reception and sending, etc.  As a result, any claims that passwords are sent "in the clear" are false.
 
-There are risks from sending passwords over the network, even when protected by TLS.  These risks are mitigated by ensuring that the TLS session parameters are verified before sending the password, usally via a method such as verifying a server certificate.
+There are risks from sending passwords over the network, even when protected by TLS.  These risks are mitigated by ensuring that the TLS session parameters are verified before sending the password, usually via a method such as verifying a server certificate.
 
 The risks of sending a password over a network via RADIUS are also increased with the common practice of multi-hop RADIUS routing.  As any security in RADIUS is on a hop-by-hop basis, every proxy which receives a RADIUS packet can see (and modify) all of the information in the packet.  Sites wishing to avoid proxies SHOULD use dynamic peer discovery {{RFC7585}}, which permits clients to make connections directly to authoritative servers for a realm.
 
@@ -434,7 +434,7 @@ This document updates {{RFC2865}} at al. to state that any new RADIUS specificat
 
 (This section to be removed by the RFC editor.)
 
-This specification is being implemented (client and server) in the FreeRADIUS project which is hosted on GitHub.  URL TBD.  The code implemention "diff" is approximately 2,000 lines, including build system changes and changes to configuration parsers.
+This specification is being implemented (client and server) in the FreeRADIUS project which is hosted on GitHub.  URL TBD.  The code implementation "diff" is approximately 2,000 lines, including build system changes and changes to configuration parsers.
 
 # Privacy Considerations
 
