@@ -76,6 +76,8 @@ The changes from traditional TLS-based transports for RADIUS are as follows:
 
 * The now-unused Request and Response Authenticator fields have been repurposed to carry an opaque Token which identifies requests and responses,
 
+* The Identifier field is no longer used, and has been replaced by the Token field,
+
 * The Message-Authenticator attribute ({{RFC3579}} Section 3.2) is not sent in any packet, and if received is ignored,
 
 * Attributes such as User-Password, Tunnel-Password, and MS-MPPE keys are sent encoded as "text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5), without the previous MD5-based obfuscation.  This obfuscation is no longer necessary, as the data is secured and kept private through the use of TLS.
@@ -84,11 +86,11 @@ The changes from traditional TLS-based transports for RADIUS are as follows:
 
 The following items are left unchanged from traditional TLS-based transports for RADIUS:
 
-* the RADIUS packet header is the same size, and the Code, Identifier, and Length fields ({{RFC2865}} Section 3) all have the same meaning as before
+* the RADIUS packet header is the same size, and the Code and Length fields ({{RFC2865}} Section 3) have the same meaning as before,
 
 * All attributes which do not use MD5-based obfuscation methods are encoded using the normal RADIUS methods, and have the same meaning as before,
 
-* As this extension is a transport profile for one "hop" (client to server connection), it does not impact any other connection used by a client or server.  The only systems which are aware that this transport profile is in use are the client and server which have negotiated the extension on a particular shared connection.
+* As this extension is a transport profile for one "hop" (client to server connection), it does not impact any other connection used by a client or server.  The only systems which are aware that this transport profile is in use are the client and server which have negotiated the use of this extension on a particular shared connection.
 
 * This extension uses the same ports (2083/tcp and 2083/udp) which are defined for RADIUS/TLS {{RFC6614}} and RADIUS/DTLS {{RFC7360}}.
 
@@ -360,11 +362,13 @@ Another way to mitigate these risks is for the system being authenticated to use
 
 ### User-Password
 
-The User-Password attribute ({{RFC2865}} Section 5.2) MUST be encoded the same as any other attribute of data type 'text' ({{RFC8044}} Section 3.4), e.g. User-Name ({{RFC2865}} Section 5.1).
+The User-Password attribute ({{RFC2865}} Section 5.2) MUST be encoded the same as any other attribute of data type 'string' ({{RFC8044}} Section 3.4).
 
 The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865}} Section 5.2 for compatibility with legacy transports.
 
-Despite the requirement of {{RFC8044}} Section 3.4 that 'text' data types be UTF-8 data, proxies MUST NOT interpret or modify the content of the User-Password attribute.  Validation and interpretation of the User-Password is the role of the home server, and there is no need for the proxy to do anything other than transport that data.
+Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.5.
+
+However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for User-Password.
 
 ### CHAP-Challenge
 
@@ -410,7 +414,19 @@ If the Original-Packet-Code attribute is received over a RADIUSv11 connection, t
 
 We note that any packet which contains an Original-Packet-Code attribute can still be processed.  There is no need to discard an entire packet simply because it contains an Original-Packet-Code attribute.
 
-# Proxies
+# Other Considerations
+
+Most of the differences between normal RADIUS and RADIUSv11 are in the packet header and attribute handling, as discussed above.  The remaining issues are a small set of unrelated topics, and are discussed here.
+
+## Status-Server
+
+{{RFC6613}} Section 2.6.5, ad by extension {{RFC7360}} suggest that the Identifier value zero (0) be reserved for use with Status-Server, as an application-layer watchdog.  This practice MUST NOT be used for RADIUSv11, as the Identifier field is no longer used.
+
+The rational for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packers..  If all 256 Identifier values had been used to send Access-Request packets, there would be no Identifier value available for sending a Status-Sercer Packet.
+
+In contrast, the Token field allows for 2^32 outstanding packets on one RADIUSv11 connection.  If there is a need to send a Status-Server packet, there is therefore always a new value available for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.
+
+## Proxies
 
 A RADIUS proxy normally decodes and then re-encodes all attributes, included obfuscated ones.  A RADIUS proxy will not generally rewrite the content of the attributes it proxies (unless site-local policy requires such a rewrite).  While some attributes may be modified due to administrative or policy rules on the proxy, the proxy will generally not rewrite the contents of attributes such as User-Password, Tunnel-Password, CHAP-Password, MS-CHAP-Password, MS-MPPE keys, etc.  All attributes are therefore transported through a RADIUSv11 connection without changing their values or contents.
 
@@ -424,13 +440,13 @@ All crypto-agility needed or use by this specification is implemented in TLS.  T
 
 ## Future Standards
 
-This specification defines a new transport profile for RADIUS.  It does not define a completely new protocol.  As such, any future attribute definitions MUST first be defined for RADIUS/UDP, and only then can those definitions be applied to this transport profile.
+This specification defines a new transport profile for RADIUS.  It does not define a completely new protocol.  As such, any future attribute definitions MUST first be defined for RADIUS/UDP, after which those definitions can be applied to this transport profile.
 
-New specifications MAY define new attributes which use the obfuscation methods for User-Password as defined in {{RFC2865}} Section 5.2, or for Tunnel-Password as defined in {{RFC2868}} Section 3.5.  There is no need for those specifications to describe how those new attributes are transported in RADIUSV11; they will by definition be transported as their underlying data type ("text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5).
+New specifications MAY define new attributes which use the obfuscation methods for User-Password as defined in {{RFC2865}} Section 5.2, or for Tunnel-Password as defined in {{RFC2868}} Section 3.5.  There is no need for those specifications to describe how those new attributes are transported in RADIUSv11.  Since RADIUSv11 does not use MD5, any obfuscated attributes will by definition be transported as their underlying data type ("text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5).
 
 New RADIUS specifications MUST NOT define attributes which can only be transported over RADIUS/TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "Invalid Attributes" ({{RFC6929}} Section 2.8), and could forward them over an insecure link.  As RADIUS security and signalling is hop-by-hop, there is no way for a RADIUS/TLS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
 
-This document updates {{RFC2865}} at al. to state that any new RADIUS specification MUST NOT introduce new "ad hoc" cryptographic primitives as was done with User-Password and Tunnel-Password.  That is, RADIUS-specific cryptographic methods existing as of the publication of this document are permitted to be used for historical compatibility.  However, all new cryptographic work in RADIUS is forbidden.  There is insufficient expertise in the RADIUS community to securely design new cryptography.
+This document updates {{RFC2865}} at al. to state that any new RADIUS specification MUST NOT introduce new "ad hoc" cryptographic primitives as was done with User-Password and Tunnel-Password.  That is, RADIUS-specific cryptographic methods existing as of the publication of this document can continue to be used for historical compatibility.  However, all new cryptographic work in RADIUS is forbidden.  There is insufficient expertise in the RADIUS community to securely design new cryptography.
 
 # Implementation Status
 
