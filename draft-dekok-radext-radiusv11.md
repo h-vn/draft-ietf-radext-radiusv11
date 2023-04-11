@@ -420,11 +420,11 @@ Most of the differences between normal RADIUS and RADIUSv11 are in the packet he
 
 ## Status-Server
 
-{{RFC6613}} Section 2.6.5, ad by extension {{RFC7360}} suggest that the Identifier value zero (0) be reserved for use with Status-Server, as an application-layer watchdog.  This practice MUST NOT be used for RADIUSv11, as the Identifier field is no longer used.
+{{RFC6613}} Section 2.6.5, and by extension {{RFC7360}} suggest that the Identifier value zero (0) be reserved for use with Status-Server as an application-layer watchdog.  This practice MUST NOT be used for RADIUSv11, as the Identifier field is no longer used.
 
 The rational for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packers..  If all 256 Identifier values had been used to send Access-Request packets, there would be no Identifier value available for sending a Status-Sercer Packet.
 
-In contrast, the Token field allows for 2^32 outstanding packets on one RADIUSv11 connection.  If there is a need to send a Status-Server packet, there is therefore always a new value available for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.
+In contrast, the Token field allows for 2^32 outstanding packets on one RADIUSv11 connection.  If there is a need to send a Status-Server packet, it is always possible to allocate a new value for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.  The edge condition is that there are 2^32 outstanding packets on one connection with no new Token value available for Status-Server.  In which case there are other issues which are more serious, such allowing billions of packets to be oustanding.  The safest way forward is likely to just close the connection.
 
 ## Proxies
 
