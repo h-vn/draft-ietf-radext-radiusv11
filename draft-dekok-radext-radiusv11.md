@@ -378,6 +378,10 @@ However, implementations should be aware that passwords are often printable text
 
 The Tunnel-Password attribute ({{RFC2868}} Section 3.5) MUST be encoded the same as any other attribute of data type 'text' which contains a tag, such as Tunnel-Client-Endpoint ({{RFC2868}} Section 3.3).  Since the attribute is no longer obfuscated, there is no need for a Salt field or Data-Length fields as described in {{RFC2868}} Section 3,5, and the textual value of the password can simply be encoded as-is.
 
+Note that the Tunnel-Password attribute is not of data type 'text'.  The original reason in {{?RFC2868}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the Tunnel-Password attribute do not have to printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.5.
+
+However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for Tunnel-Password.
+
 ### Vendor-Specific Attributes
 
 Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as per their base data type.  Specifically, the MS-MPPE-Send-Key and MS-MPPE-Recv-Key attributes ({{RFC2548}} Section 2.4) MUST be encoded as any other attribute of data type 'string' ({{RFC8044}} Section 3.5).
