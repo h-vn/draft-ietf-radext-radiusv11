@@ -1,7 +1,7 @@
 ---
 title: RADIUS Version 1.1
 abbrev: RADIUSv11
-docname: draft-dekok-radext-radiusv11-03
+docname: draft-dekok-radext-radiusv11-04
 updates: 6613,7360
 
 stand_alone: true
@@ -64,9 +64,9 @@ This extension can be seen as a transport profile for RADIUS, as it is not an en
 
 The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Decades of cryptographic research has shown that MD5 is insecure, and MD5 should no longer be used.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.  There are many prior discussions of MD5 insecurities which we will not repeat here.  These discussions are most notably in {{RFC6151}}, and in Section 3 of {{RFC6421}}, among others.
 
-While additional transport protocols were defined for RADIUS in TCP ({{?RFC6613}}), TLS ({{?RFC6614}}), and DTLS ({{?RFC7360}}), those transports still relied on MD5.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around normal RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, signing, and packet validation.
+While additional transport protocols were defined for RADIUS in TCP ({{RFC6613}}), TLS ({{RFC6614}}), and DTLS ({{RFC7360}}), those transports still relied on MD5.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around normal RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, signing, and packet validation.
 
-The ensuing years has shown that it is important for RADIUS to remove its dependency on MD5.  The continued use of MD5 is no longer acceptable in a security-conscious environment.  The use of MD5 in {{?RFC6614}} and {{?RFC7360}} adds no security or privacy over that provided by TLS.  It is time to remove the use of MD5 from RADIUS.
+The ensuing years has shown that it is important for RADIUS to remove its dependency on MD5.  The continued use of MD5 is no longer acceptable in a security-conscious environment.  The use of MD5 in {{RFC6614}} and {{RFC7360}} adds no security or privacy over that provided by TLS.  It is time to remove the use of MD5 from RADIUS.
 
 This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS which removes the dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  To support this claim, a preliminary implementation of this extension was done in an Open Source RADIUS server.  Formatted as a source code patch, the changes comprised approximately 1,000 lines of text, of which there are less than 600 lines of new code.  This effort shows that the changes to RADIUS are minimal, and are well understood.
 
@@ -182,6 +182,8 @@ Allowed Values
 
 > allow - Allow (or negotiate) the use of RADIUSv11
 >
+>> This value MUST be the default setting for implementations which support this specification.
+>>
 >> A client with this configuration MUST use ALPN to signal that "radius/1.1" can be used.  The use of historical RADIUS/(D)TLS is implied in the use of (D)TLS.
 >>
 >> A server with this configuration MAY reply to a client with an ALPN string of "radius/1.1", but only if the client first signals support for that protocol name via ALPN.
@@ -387,7 +389,7 @@ However, implementations should be aware that passwords are often printable text
 
 The Tunnel-Password attribute ({{RFC2868}} Section 3.5) MUST be encoded the same as any other attribute of data type 'text' which contains a tag, such as Tunnel-Client-Endpoint ({{RFC2868}} Section 3.3).  Since the attribute is no longer obfuscated, there is no need for a Salt field or Data-Length fields as described in {{RFC2868}} Section 3,5, and the textual value of the password can simply be encoded as-is.
 
-Note that the Tunnel-Password attribute is not of data type 'text'.  The original reason in {{?RFC2868}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the Tunnel-Password attribute do not have to printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.5.
+Note that the Tunnel-Password attribute is not of data type 'text'.  The original reason in {{RFC2868}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the Tunnel-Password attribute do not have to printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.5.
 
 However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for Tunnel-Password.
 
@@ -445,9 +447,13 @@ A RADIUS proxy normally decodes and then re-encodes all attributes, included obf
 
 A proxy may negotiate RADIUSv11 (or not) with a particular client or clients, and it may negotiate RADIUSv11 (or not) with a server or servers it connect to, in any combination.  As a result, this specification is fully compatible with all past, present, and future RADIUS attributes.
 
-# Crypto-Agility
+## Crypto-Agility
 
-The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614}} Appendix C, and in Section 10.1 of {{RFC7360}}.  This specification makes no changes from, or additions to, those specifications.
+The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614}} Appendix C, and in Section 10.1 of {{RFC7360}}.  This specification makes no changes from, or additions to, those specifications.  The use of ALPN, and the removal of MD5 has no impact on security or privacy of the protocol.
+
+RADIUS/TLS has been widely deployed in at least eduroam and in OpenRoaming.  RADIUS/DTLS has seen less adoption, but it is known to be supported in many RADIUS clients and servers.
+
+It is RECOMMENDED that all implementations of RADIUS/TLS and RADIUS/DTLS be updated to support this specification.  The effort to implement this specification is minimal.  Once implementations support this specification, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to downbidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
 
 All crypto-agility needed or use by this specification is implemented in TLS.  This specification also removes all cryptographic primitives from the application-layer protocol (RADIUS) being transported by TLS.  As discussed in the next section below, this specification also bans the development of all new cryptographic or crypto-agility methods in the RADIUS protocol.
 
