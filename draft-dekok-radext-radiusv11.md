@@ -217,11 +217,37 @@ Once a system has been configured to support ALPN, it is negotiated on a per-con
 
 ## Negotiation
 
-If the "RADIUS-1.1" flag is set to "allow", then both "radius/1.0" and "radius/1.1" application protocols MUST be signalled via ALPN.  Where a system sees that both ends of a connection support "radius/1.1", then it MUST be used.  There is no reason to negotiate an extension and the refuse to use it.
+We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.  In summary, the flow of ALPN in a TLS connection proceeds as follows:
 
-If a systems supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as if the other end had sent the ALPN protocol name "radius/1.0".
+1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
-If a system determines that there are no compatible application protocol names, then it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  The connection MUST then be torn down.
+>  The value "RADIUS-1.1" flag is used by the client to determine what to send:
+>
+>> forbid - no ALPN, or "radius/1.0" only
+>>
+>> allow - both "radius/1.0" and "radius/1.1"
+>>
+>> require - only "radius/1.1"
+
+2) The server receives the extension, and validates the application protocol names against the list it has configured.
+
+> If the server does not accept any of the proposals, it sends a fatal TLS alert "no_application_protocol" (120).
+
+3) Otherwise, the server return a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol
+
+> If the server permits "radius/1.1" , and it receives the same protocol name from the client, the server MUST respond to the client with "radius/1.1".  This happens when the client is configured as "allow" or "require", and the server is also configured with "allow" or "require".
+>
+> If the client does not signal ALPN, or signals only "radius/1.0", and the server is configured as "forbid" or "allow", then the server MAY omit the ALPN response, otherwise if it sends an ALPN response it MUST send "radius/1.0".
+
+4) The client receives the ServerHello, validates the application protocol against the list it sent, and records which application protocol was chosen
+
+> This step is necessary in order for the client to know which protocol the server has selected, and to validate that the protocol is acceptable to it.
+
+For the client, if the "RADIUS-1.1" flag is set to "allow", then both "radius/1.0" and "radius/1.1" application protocols MUST be signalled via ALPN.  Where a server sees that both ends of a connection support "radius/1.1", then it MUST be used.  There is no reason to negotiate an extension and the refuse to use it.
+
+If a client or server supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as if the other end had sent the ALPN protocol name "radius/1.0".  Note that a client can send ALPN proposals and recieve nothing from the server.  Similarly, a serer can support ALPN, but perhaps not recieve ALPN on a particular connection.
+
+If a client or server determines that there are no compatible application protocol names, then it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  It MUST then close the connection.
 
 It is RECOMMENDED that a descriptive error is logged in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, a system receiving a TLS alert of "no_application_protocol" SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
@@ -460,7 +486,7 @@ This document updates {{RFC2865}} at al. to state that any new RADIUS specificat
 
 (This section to be removed by the RFC editor.)
 
-This specification is being implemented (client and server) in the FreeRADIUS project which is hosted on GitHub.  URL TBD.  The code implementation "diff" is approximately 2,000 lines, including build system changes and changes to configuration parsers.
+This specification is being implemented (client and server) in the FreeRADIUS project which is hosted on GitHub at https://github.com/FreeRADIUS/freeradius-server/tree/v3.2.x  The code implementation "diff" is approximately 1,000 lines, including build system changes and changes to configuration parsers.
 
 # Privacy Considerations
 
