@@ -148,41 +148,23 @@ We define an ALPN extension for TLS-based RADIUS transports.   In addition to de
 
 # Defining and configuring ALPN
 
-This document defines two ALPN protocol names which can be used to negotiate the use (or not) of this specification:
-
-> "radius/1.0"
->
->> Traditional RADIUS/TLS or RADIUS/DTLS.
+This document defines a new ALPN protocol name which can be used to negotiate the use (or not) of this specification:
 
 > "radius/1.1"
 >
 >> The protocol defined by specification.
 
-Where ALPN is not configured or is not received in a TLS connection, systems supporting ALPN MUST behave as if the ALPN name "radius/1.0" is being used.
+Where ALPN is not configured or is not received in a TLS connection, systems supporting ALPN MUST not use RADIUSv11.
 
-Where ALPN is configured, we have the following choices:
-
-> use "radius/1.0" only.
->
->> There is no need in this case to use ALPN, but this configuration is included for completeness
-
-> use "radius/1.1" only
->
->> ALPN is required.
-
-> negotiate either "radius/1.0" or "radius/1.1"
->
->> If one end signals support for both "radius/1.0" and "radius/1.1", and the other end either does not use ALPN, then the system using ALPN MUST behave as if the other end has used the ALPN name "radius/1.0".
->>
->> If one end signals support for both "radius/1.0" and "radius/1.1", and the other end either end signals support only for one ALPN protocol, then the mutually compatible ALPN protocol MUST be used.
->>
->> Where both ends signal support for "radius/1.1", that extension MUST be used.  There is no reason to negotiate a feature and then not use it.
+Where ALPN is configured, the client signals support by sending the ALPN string "radius/1.1".  The server can accept this proposal and reply with the ALPN string "radius/1.1", or reject this proposal, and not reply with any ALPN string.
 
 Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which makes a connection use "radius/1.1" without signalling that protocol via ALPN.
 
 ### Configuration of ALPN
 
 Clients or servers supporting this specification can do so by extending their TLS configuration through the addition of a new configuration flag, called "RADIUS-1.1" here.  The exact name given below does not need to be used, but it is RECOMMENDED that administrative interfaces or programming interfaces use a similar name in order to provide consistent terminology.  This flag controls how the implementations signal use of this protocol via ALPN.
+
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  The definition of the "radius/1.1" transport profile is given below in the next section.
 
 Configuration Flag Name
 
@@ -192,28 +174,25 @@ Allowed Values
 
 > forbid - Forbid the use of RADIUSv11
 >
->> The system MAY signal ALPN via the "radius/1.0" protocol
->> name.  If ALPN is not used, the system MUST use RADIUS/TLS or
+>> A client with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS/TLS or
 >> RADIUS/DTLS as per {{RFC6614}} and {{RFC7360}}.
 >>
->> The "radius/1.1" ALPN protocol name MUST NOT be sent by the system.
+>> A server with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS/TLS or
+>> RADIUS/DTLS as per {{RFC6614}} and {{RFC7360}}.
 
 > allow - Allow (or negotiate) the use of RADIUSv11
 >
->> The system MUST use ALPN to signal that both "radius/1.0" and
->> "radius/1.1" can be used.
->
+>> A client with this configuration MUST use ALPN to signal that "radius/1.1" can be used.  The use of historical RADIUS/(D)TLS is implied in the use of (D)TLS.
+>>
+>> A server with this configuration MAY reply to a client with an ALPN string of "radius/1.1", but only if the client first signals support for that protocol name via ALPN.
+
 > require -  Require the use of RADIUSv11
 >
->> The system MUST use ALPN to signal that only "radius/1.1" is being used.
+>> A client with this configuration MUST use ALPN to signal that "radius/1.1" is being used.
 >>
->> The "radius/1.0" ALPN protocol name MUST NOT be sent by the system.
+>> A server with this configuration MUST close the connection if the client does not signal "radius/1.1" via ALPN.
 >>
->> If no ALPN is received, or "radius/1.1" is not received via ALPN,
->> the system MUST log an informative message and close the TLS
->> connection.
-
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  The definition of the "radius/1.1" transport profile is given below.
+>> A server with this configuration MUST reply with the ALPN protocol name "radius/1.1" if the client signals "radius/1.1".
 
 ## Negotiation
 
@@ -223,29 +202,29 @@ We give a brief overview here of ALPN in order to provide a high-level descripti
 
 >  The value "RADIUS-1.1" flag is used by the client to determine what to send:
 >
->> forbid - no ALPN, or "radius/1.0" only
+>> forbid - no ALPN
 >>
->> allow - both "radius/1.0" and "radius/1.1"
+>> allow - both historic RADIUS and "radius/1.1"
 >>
 >> require - only "radius/1.1"
 
-2) The server receives the extension, and validates the application protocol names against the list it has configured.
+2) The server receives the extension, and validates the application protocol name against the list it has configured.
 
-> If the server does not accept any of the proposals, it sends a fatal TLS alert "no_application_protocol" (120).
+> If the server does not accept the proposal, it sends a fatal TLS alert "no_application_protocol" (120).
 
 3) Otherwise, the server return a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol
 
 > If the server permits "radius/1.1" , and it receives the same protocol name from the client, the server MUST respond to the client with "radius/1.1".  This happens when the client is configured as "allow" or "require", and the server is also configured with "allow" or "require".
 >
-> If the client does not signal ALPN, or signals only "radius/1.0", and the server is configured as "forbid" or "allow", then the server MAY omit the ALPN response, otherwise if it sends an ALPN response it MUST send "radius/1.0".
+> If the client does not signal ALPN, and the server is configured as "forbid" or "allow", then the server MUST NOT reply with any ALPN protocol name.
 
-4) The client receives the ServerHello, validates the application protocol against the list it sent, and records which application protocol was chosen
+4) The client receives the ServerHello, validates the application protocol against the name it sent, and records the application protocol which was chosen
 
-> This step is necessary in order for the client to know which protocol the server has selected, and to validate that the protocol is acceptable to it.
+> This step is necessary in order for the client to both know which protocol the server has selected, and to validate that the protocol sent by the server is acceptable to the client.
 
-For the client, if the "RADIUS-1.1" flag is set to "allow", then both "radius/1.0" and "radius/1.1" application protocols MUST be signalled via ALPN.  Where a server sees that both ends of a connection support "radius/1.1", then it MUST be used.  There is no reason to negotiate an extension and the refuse to use it.
+For the client, if the "RADIUS-1.1" flag is set to "allow", then the "radius/1.1" application protocol MUST be signalled via ALPN.  Where a server sees that both ends of a connection support "radius/1.1", then it MUST be used.  There is no reason to negotiate an extension and then refuse to use it.
 
-If a client or server supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as if the other end had sent the ALPN protocol name "radius/1.0".  Note that a client can send ALPN proposals and recieve nothing from the server.  Similarly, a serer can support ALPN, but perhaps not recieve ALPN on a particular connection.
+If a client or server supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as defined in {{RFC6614}} and {{RFC7360}}.  Note that a client can send an ALPN proposal and recieve nothing from the server.  Similarly, a server can support ALPN, but perhaps not receive ALPN on a particular connection.
 
 If a client or server determines that there are no compatible application protocol names, then it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  It MUST then close the connection.
 
@@ -263,7 +242,7 @@ Implementations of this specification MUST support TLS-PSK.
 
 > When session resumption or session tickets (RFC5077) are used, the previous contents of this extension are irrelevant, and only the values in the new handshake messages are considered.
 
-In order to prevent down-bidding attacks, RADIUS servers which negotiate RADIUSv11 MUST associate that information with the session ticket.  On session resumption, the server MUST advertise only the capability to do "radius/1.1" for that session.  That is, even if the server configuration permits both ALPN methods "radius/1.0"" and "radius/1.1" to be used for new connections, the server MUST NOT permit "radius/1.0" to be used on session resumption where the session had previously negotiated "radius/1.1".
+In order to prevent down-bidding attacks, RADIUS servers which negotiate the "radius/1.1" protocol MUST associate that information with the session ticket.  On session resumption, the server MUST advertise only the capability to do "radius/1.1" for that session.  That is, even if the server configuration is "allow" for new connections, it MUST signal "radius/1.1" when resuming a session which had previously negotiated "radius/1.1".
 
 # Definition of RADIUSv11
 
@@ -498,14 +477,9 @@ The primary focus of this document is addressing security considerations for RAD
 
 # IANA Considerations
 
-IANA is request to update the "TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs" registry with two new entries:
+IANA is request to update the "TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs" registry with one new entry:
 
 ~~~~
-Protocol: radius/1.0
-Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x30
-    ("radius/1.0")
-Reference: This document
-
 Protocol: radius/1.1
 Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x31
     ("radius/1.1")
@@ -549,5 +523,21 @@ draft-dekok-radext-radiusv11-03
 > Consistently refer to the specification as "RADIUSv11", and consistently quote the ALPN name as "radius/1.1"
 >
 > Add discussion of future attributes and future crypto-agility work.
+
+draft-dekok-radext-radiusv11-04
+
+>  Remove "radius/1.0" as it is unnecessary.
+>
+>  Update Introduction with more historical background, which motivates the rest of the section.
+>
+>  Change Identifier field to be reserved, as it is entirely unused.
+>
+>  Update discussion on clear text passwords.
+>
+> Clarify discussion of Status-Server, User-Password, and Tunnel-Password.
+>
+> Give high level summary of ALPN, clear up client / server roles, and remove "radius/1.0" as it is unnecessary.
+>
+> Add text on RFC6421.
 
 --- back
