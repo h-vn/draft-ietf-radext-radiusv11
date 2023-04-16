@@ -108,7 +108,7 @@ Unless otherwise described in this document, all RADIUS requirements apply to th
 
 This specification is compatible with existing implementations of RADIUS/TLS and RADIUS/DTLS.  There is no need to define an ALPN name for those protocols, as implementations can simply not send an ALPN name when those protocols are used.  Backwards compatibility with existing implementations is both required, and assumed.
 
-This specification is compatible with all past and future RADIUS specifications.  There is no need for any RADIUS specification to mention this transport profile by name, or to make provisions for this specification.  This specification instead defines how to transform RADIUS into RADIUS/1.1.
+This specification is compatible with all past and future RADIUS specifications.  There is no need for any RADIUS specification to mention this transport profile by name, or to make provisions for this specification.  This specification defines how to transform RADIUS into RADIUS/1.1, and no further discussion of that transformation is necessary.
 
 In short, when negotiated on a connection, this specification permits implementations to avoid MD5 when signing packets, or obfuscating certain attributes.
 
@@ -141,6 +141,10 @@ In short, when negotiated on a connection, this specification permits implementa
 * RADIUS/DTLS
 
 >> RADIUS over the Datagram Transport Layer Security protocol  {{RFC7360}}
+
+* RADIUS over TLS
+
+>> Either RADIUS/TLS or RADIUS/DTLS.  This terminology is used instead of alternatives such as "RADIUS/(D)TLS", or "either RADIUS/TLS or RADIUS/DTLS".
 
 * RADIUS/1.1
 
@@ -182,11 +186,11 @@ Allowed Values
 
 > forbid - Forbid the use of RADIUS/1.1
 >
->> A client with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS/TLS or
->> RADIUS/DTLS as per {{RFC6614}} and {{RFC7360}}.
+>> A client with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS over TLS
+>> as defined in {{RFC6614}} and {{RFC7360}}.
 >>
->> A server with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS/TLS or
->> RADIUS/DTLS as per {{RFC6614}} and {{RFC7360}}.
+>> A server with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS over TLS
+>> as defined in {{RFC6614}} and {{RFC7360}}.
 
 > allow - Allow (or negotiate) the use of RADIUS/1.1
 >
@@ -375,7 +379,7 @@ We understand that there is often concern in RADIUS that passwords are sent "in 
 
 There are risks from sending passwords over the network, even when they are protected by TLS.  One such risk somes from the common practice of multi-hop RADIUS routing.  As all security in RADIUS is on a hop-by-hop basis, every proxy which receives a RADIUS packet can see (and modify) all of the information in the packet.  Sites wishing to avoid proxies SHOULD use dynamic peer discovery {{RFC7585}}, which permits clients to make connections directly to authoritative servers for a realm.
 
-These others ways to mitigate these risks .  One is by ensuring that the RADIUS/TLS session parameters are verified before sending the password, usually via a method such as verifying a server certificate.  That is, passwords should only be sent to verified and trusted parties.  If the TLS session parameters are not verified, then it is trivial to convince the RADIUS client to send passwords to anyone.
+These others ways to mitigate these risks .  One is by ensuring that the RADIUS over TLS session parameters are verified before sending the password, usually via a method such as verifying a server certificate.  That is, passwords should only be sent to verified and trusted parties.  If the TLS session parameters are not verified, then it is trivial to convince the RADIUS client to send passwords to anyone.
 
 Another way to mitigate these risks is for the system being authenticated to use an authentication protocol which never sends passwords (e.g. EAP-PWD {{?RFC5931}}), or which sends passwords protected by a TLS tunnel (e.g. EAP-TTLS {{?RFC5281}}).  The processes to choose and configuring an authentication protocol are strongly site-dependent, so further discussion of these issues are outside of the scope of this document.  The goal here is to ensure that the reader has enough information to make an informed decision.
 
@@ -461,7 +465,7 @@ The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614}} Appe
 
 RADIUS/TLS has been widely deployed in at least eduroam and in OpenRoaming.  RADIUS/DTLS has seen less adoption, but it is known to be supported in many RADIUS clients and servers.
 
-It is RECOMMENDED that all implementations of RADIUS/TLS and RADIUS/DTLS be updated to support this specification.  The effort to implement this specification is minimal.  Once implementations support this specification, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to downbidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
+It is RECOMMENDED that all implementations of RADIUS over TLS be updated to support this specification.  The effort to implement this specification is minimal.  Once implementations support this specification, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to downbidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
 
 All crypto-agility needed or use by this specification is implemented in TLS.  This specification also removes all cryptographic primitives from the application-layer protocol (RADIUS) being transported by TLS.  As discussed in the next section below, this specification also bans the development of all new cryptographic or crypto-agility methods in the RADIUS protocol.
 
@@ -470,8 +474,8 @@ All crypto-agility needed or use by this specification is implemented in TLS.  T
 This specification defines a new transport profile for RADIUS.  It does not define a completely new protocol.  As such, any future attribute definitions MUST first be defined for RADIUS/UDP, after which those definitions can be applied to this transport profile.
 
 New specifications MAY define new attributes which use the obfuscation methods for User-Password as defined in {{RFC2865}} Section 5.2, or for Tunnel-Password as defined in {{RFC2868}} Section 3.5.  There is no need for those specifications to describe how those new attributes are transported in RADIUS/1.1.  Since RADIUS/1.1 does not use MD5, any obfuscated attributes will by definition be transported as their underlying data type ("text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5).
-
-New RADIUS specifications MUST NOT define attributes which can only be transported over RADIUS/TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "Invalid Attributes" ({{RFC6929}} Section 2.8), and could forward them over an insecure link.  As RADIUS security and signalling is hop-by-hop, there is no way for a RADIUS/TLS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
+a
+New RADIUS specifications MUST NOT define attributes which can only be transported via RADIUS over TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "Invalid Attributes" ({{RFC6929}} Section 2.8), and could forward them over an insecure link.  As RADIUS security and signalling is hop-by-hop, there is no way for a RADIUS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
 
 New specifications do not need to mention this transport profile, or make any special provisions for dealing with it.  This specification defines how RADIUS packet encoding, decoding, signing, and verification are performed when using RADIUS/1.1.  So long as any future specification uses the existing encoding, etc. schemes defined for RADIUS, no additional text in future documents is necessary in order to be compatible with RADIUS/1.1.
 
@@ -504,7 +508,7 @@ Reference:  This document
 
 # Acknowledgements
 
-In hindsight, the decision to retain MD5 for RADIUS/TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
+In hindsight, the decision to retain MD5 for RADIUS over TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
 
 Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, and Alexander Clouter for reviews and feedback.
 
