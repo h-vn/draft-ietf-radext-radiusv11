@@ -244,6 +244,51 @@ If a client or server determines that there are no compatible application protoc
 
 It is RECOMMENDED that a descriptive error is logged in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, a system receiving a TLS alert of "no_application_protocol" SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
+Note that there is no way for a client to signal if its' RADIUS/1.1 configuration is set to "allow" or "require".  The client MUST signal "radius/1.1" via ALPN when it is configured with either value.  The difference between the two values for the client is only in how it handles reponses from the server.
+
+Similarly, there is no way for a server to signal if its' RADIUS/1.1 configuration is set to "allow" or "require".  In both cases if it receives "radius/1.1" from the client via ALPN, the server MUST reply with "radius/1.1", and agree to that negotiation.  The difference between the two values for the server is how it handles the situation when no ALPN is signalled from the client.
+
+A table of possible behaviors for client/server values of the RADIUS/1.1 flag is given below.  This table and names given below are for informational and descriptive purposes only.
+
+~~~~
+                             Server
+              no ALPN | forbid  | allow  | require
+Client    |--------------------------------------
+----------|
+No ALPN   |   RADIUS    RADIUS    RADIUS   Close
+          |                                Note 1
+          |
+forbid    |   RADIUS    RADIUS    RADIUS   Close
+          |                                Note 1
+          |
+allow     |   RADIUS    RADIUS    OK	  OK
+          |   Note 3    Note 3
+          |
+require   |   Close     Close     OK      OK
+          |   Note 2    Note 2
+~~~~
+{: #Header title="Possible outcomes for ALPN Negotiation"}
+
+The table entries above have the following meaning:
+
+Close
+
+> Note 1 - the server closes the connection, as the client does not do RADIUS/1.1
+>
+> Note 2 - the client closes the connection, as the server does not do RADIUS/1.1
+
+RADIUS
+
+> RADIUS over TLS is used.  RADIUS/1.1 is not used.
+>
+> Note 3 - The client sends ALPN, but the server does not reply with ALPN.
+
+OK
+
+> RADIUS/1.1 is used by both parties.
+>
+> The client sends "radius/1.1" via ALPN, and the server repies with "radius/1.1" via ALPN.
+
 ## Additional TLS issues
 
 Implementations of this specification MUST require TLS version 1.3 or later.
