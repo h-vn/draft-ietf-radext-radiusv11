@@ -118,21 +118,21 @@ In short, when negotiated on a connection, this specification permits implementa
 
 * ALPN
 
->> Application-Layer Protocol Negotiation, as defined in {{RFC7301}}.
+> Application-Layer Protocol Negotiation, as defined in {{RFC7301}}.
 
 * RADIUS
 
->> The Remote Authentication Dial-In User Service protocol, as defined in {{RFC2865}}, {{RFC2865}}, and {{RFC5176}} among others.
->>
->> While this protocol can be viewed as "RADIUS/1.0", for simplicity and historical compatibility, we keep the name "RADIUS".
+> The Remote Authentication Dial-In User Service protocol, as defined in {{RFC2865}}, {{RFC2865}}, and {{RFC5176}} among others.
+>
+> While this protocol can be viewed as "RADIUS/1.0", for simplicity and historical compatibility, we keep the name "RADIUS".
 
 * RADIUS/UDP
 
->> RADIUS over the User Datagram Protocol as define above.
+> RADIUS over the User Datagram Protocol as define above.
 
 * RADIUS/TCP
 
->> RADIUS over the Transmission Control Protocol {{RFC6613}}.
+> RADIUS over the Transmission Control Protocol {{RFC6613}}.
 
 * RADIUS/TLS
 
@@ -140,19 +140,19 @@ In short, when negotiated on a connection, this specification permits implementa
 
 * RADIUS/DTLS
 
->> RADIUS over the Datagram Transport Layer Security protocol  {{RFC7360}}.
+> RADIUS over the Datagram Transport Layer Security protocol  {{RFC7360}}.
 
 * RADIUS over TLS
 
->> Either RADIUS/TLS or RADIUS/DTLS.  This terminology is used instead of alternatives such as "RADIUS/(D)TLS", or "either RADIUS/TLS or RADIUS/DTLS".
+> Either RADIUS/TLS or RADIUS/DTLS.  This terminology is used instead of alternatives such as "RADIUS/(D)TLS", or "either RADIUS/TLS or RADIUS/DTLS".
 
 * RADIUS/1.1
 
->> The transport profile defined in this document, which stands for "RADIUS version 1.1".  We use RADIUS/1.1 to refer interchangeably to TLS and DTLS transport.
+> The transport profile defined in this document, which stands for "RADIUS version 1.1".  We use RADIUS/1.1 to refer interchangeably to TLS and DTLS transport.
 
 * TLS
 
->> the Transport Layer Security protocol.  Generally when we refer to TLS in this document, we are referring interchangeably to TLS or DTLS transport.
+> the Transport Layer Security protocol.  Generally when we refer to TLS in this document, we are referring interchangeably to TLS or DTLS transport.
 
 # The RADIUS/1.1 Transport profile for RADIUS
 
