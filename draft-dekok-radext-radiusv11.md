@@ -1,7 +1,7 @@
 ---
 title: RADIUS Version 1.1
 abbrev: RADIUSv11
-docname: draft-dekok-radext-radiusv11-04
+docname: draft-dekok-radext-radiusv11-05
 updates: 6613 7360
 
 stand_alone: true
@@ -68,7 +68,7 @@ While additional transport protocols were defined for RADIUS in TCP ({{RFC6613}}
 
 The ensuing years have shown that it is important for RADIUS to remove its dependency on MD5.  The continued use of MD5 is no longer acceptable in a security-conscious environment.  The use of MD5 in {{RFC6614}} and {{RFC7360}} adds no security or privacy over that provided by TLS.  It is time to remove the use of MD5 from RADIUS.
 
-This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS which removes the dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  To support this claim, a preliminary implementation of this extension was done in an Open Source RADIUS server.  Formatted as a source code patch, the changes comprised approximately 1,000 lines of text, of which there are less than 600 lines of new code.  This effort shows that the changes to RADIUS are minimal, and are well understood.
+This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS which removes the dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  A preliminary implementation has shown that only minor changes are required to support RADIUS/1.1 on top of an existing RADIUS server.
 
 The changes from traditional TLS-based transports for RADIUS are as follows:
 
@@ -156,11 +156,11 @@ In short, when negotiated on a connection, this specification permits implementa
 
 # The RADIUS/1.1 Transport profile for RADIUS
 
-We define an ALPN extension for TLS-based RADIUS transports.   In addition to defining the extension, we also discuss how the encoding of some attributes are changed when this extension is used.  Any field or attribute not mentioned here is unchanged from RADIUS as defined in previous specifications.
+This section describes the ALPN transport profile in detail.  It first gives the name used for ALPN, and then describes how ALPN is configured and negotiated by client and server.  It then concludes by discussing TLS issues such as what to do for ALPN during session resumption.
 
-# Defining and configuring ALPN
+## ALPN Name for RADIUS/1.1
 
-This document defines a new ALPN protocol name which can be used to negotiate the use (or not) of this specification:
+The ALPN name defined for RADIUS/1.1 is as follows:
 
 > "radius/1.1"
 >
@@ -170,13 +170,33 @@ Where ALPN is not configured or is not received in a TLS connection, systems sup
 
 Where ALPN is configured, the client signals support by sending the ALPN string "radius/1.1".  The server can accept this proposal and reply with the ALPN string "radius/1.1", or reject this proposal, and not reply with any ALPN string.
 
-Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which makes a connection use "radius/1.1" without signalling that protocol via ALPN.
+Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which causes a connection to use "radius/1.1" without signalling that protocol via ALPN.
 
-### Configuration of ALPN
+The next step in defining RADIUS/1.1 is to review how ALPN works.
+
+## Operation of ALPN
+
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.  This section is not normative.
+
+1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
+
+2) The server receives the extension, and validates the application protocol name against the list it has configured.
+
+> If the server finds no acceptable common protocols, it closes the connection.
+
+3) Otherwise, the server return a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol.
+
+> If the client does not signal ALPN, or server does not accept the ALPN proposal, the server does not reply with any ALPN name.
+
+4) The client receives the ServerHello, validates the application protocol (if any) against the name it sent, and records the application protocol which was chosen
+
+> This check is necessary in order for the client to both know which protocol the server has selected, and to validate that the protocol sent by the server is acceptable to the client.
+
+The next step in defining RADIUS/1.1 is to define how ALPN is configured on the client and server, and to give more detailed requirements on ALPN configuration and operation.
+
+## Configuration of ALPN
 
 Clients or servers supporting this specification can do so by extending their TLS configuration through the addition of a new configuration flag, called "RADIUS/1.1" here.  The exact name given below does not need to be used, but it is RECOMMENDED that administrative interfaces or programming interfaces use a similar name in order to provide consistent terminology.  This flag controls how the implementations signal use of this protocol via ALPN.
-
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  The definition of the "radius/1.1" transport profile is given below in the next section.
 
 Configuration Flag Name
 
@@ -191,56 +211,28 @@ Allowed Values
 >>
 >> A server with this configuration MUST NOT signal any protocol name via ALPN.  The system MUST use RADIUS over TLS
 >> as defined in {{RFC6614}} and {{RFC7360}}.
+>>
+>> A server with this configuration MUST NOT close the connection if it receives an ALPN name from the client. Instead, it simply does not reply with ALPN.
 
 > allow - Allow (or negotiate) the use of RADIUS/1.1
 >
 >> This value MUST be the default setting for implementations which support this specification.
 >>
->> A client with this configuration MUST use ALPN to signal that "radius/1.1" can be used.  The use of {{RFC6614}} and {{RFC7360}} RADIUS/(D)TLS is implied in the use of (D)TLS.
+>> A client with this configuration MUST use ALPN to signal that "radius/1.1" can be used.  The client MUST use RADIUS/1.1 if the server responds signalling ALPN "radius/1.1".  If no ALPN response is received from the server, the client MUST use RADIUS over TLS as defined in previous specifications.
 >>
->> A server with this configuration MAY reply to a client with an ALPN string of "radius/1.1", but only if the client first signals support for that protocol name via ALPN.
+>> A server with this configuration MAY reply to a client with an ALPN string of "radius/1.1", but only if the client first signals support for that protocol name via ALPN.  If the client does not signal ALPN, the server MUST NOT reply with any ALPN name.
 
 > require -  Require the use of RADIUS/1.1
 >
->> A client with this configuration MUST use ALPN to signal that "radius/1.1" is being used.
+>> A client with this configuration MUST use ALPN to signal that "radius/1.1" can be used.  The client MUST use RADIUS/1.1 if the server responds signalling ALPN "radius/1.1".  If no ALPN response is received from the server, the client MUST close the connection.
 >>
 >> A server with this configuration MUST close the connection if the client does not signal "radius/1.1" via ALPN.
 >>
->> A server with this configuration MUST reply with the ALPN protocol name "radius/1.1" if the client signals "radius/1.1".
+>> A server with this configuration MUST reply with the ALPN protocol name "radius/1.1" if the client signals "radius/1.1".  The server and client both MUST then use RADIUS/1.1 as the application-layer protocol.  There is no reason to signal support for a protocol, and then not use it.
 
-## Negotiation
+Note that systems implementing this specification, but configured with "forbid" as above, will behave exactly the same as systems which do not implement this specification.
 
-We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.  In summary, the flow of ALPN in a TLS connection proceeds as follows:
-
-1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
-
->  The value of the RADIUS/1.1 flag is used by the client to determine what to send:
->
->> forbid - no ALPN
->>
->> allow - allow RADIUS/(D)TLS and "radius/1.1"
->>
->> require - only "radius/1.1"
-
-2) The server receives the extension, and validates the application protocol name against the list it has configured.
-
-> If the server does not accept the proposal, it sends a fatal TLS alert "no_application_protocol" (120).
-
-3) Otherwise, the server return a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol
-
-> If the server permits "radius/1.1" , and it receives the same protocol name from the client, the server MUST respond to the client with "radius/1.1".  This happens when the client is configured as "allow" or "require", and the server is also configured with "allow" or "require".
->
-> If the client does not signal ALPN, and the server is configured as "forbid" or "allow", then the server MUST NOT reply with any ALPN protocol name.
-
-4) The client receives the ServerHello, validates the application protocol against the name it sent, and records the application protocol which was chosen
-
-> This step is necessary in order for the client to both know which protocol the server has selected, and to validate that the protocol sent by the server is acceptable to the client.
-
-For the client, if the RADIUS/1.1 flag is set to "allow", then the "radius/1.1" application protocol MUST be signalled via ALPN.  Where a server sees that both ends of a connection support "radius/1.1", then it MUST be used.  There is no reason to negotiate an extension and then refuse to use it.
-
-If a client or server supports ALPN and does not receive any ALPN signalling from the other end, it MUST behave as defined in {{RFC6614}} and {{RFC7360}}.  Note that a client can send an ALPN proposal and recieve nothing from the server.  Similarly, a server can support ALPN, but perhaps not receive ALPN on a particular connection.
-
-If a client or server determines that there are no compatible application protocol names, then it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  It MUST then close the connection.
+If a client or server determines that there are no compatible application protocol names, then as per {{RFC7301}} Section 3.2, it MUST send a TLS alert of "no_application_protocol" (120), which signals the other end that there is no compatible application protocol.  It MUST then close the connection.
 
 It is RECOMMENDED that a descriptive error is logged in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, a system receiving a TLS alert of "no_application_protocol" SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
@@ -248,7 +240,9 @@ Note that there is no way for a client to signal if its' RADIUS/1.1 configuratio
 
 Similarly, there is no way for a server to signal if its' RADIUS/1.1 configuration is set to "allow" or "require".  In both cases if it receives "radius/1.1" from the client via ALPN, the server MUST reply with "radius/1.1", and agree to that negotiation.  The difference between the two values for the server is how it handles the situation when no ALPN is signalled from the client.
 
-A table of possible behaviors for client/server values of the RADIUS/1.1 flag is given below.  This table and names given below are for informational and descriptive purposes only.
+### Tabular Summary
+
+The preceding text gives a large number of recommendations.  In order to give a simpler description of the outcomes, a table of possible behaviors for client/server values of the RADIUS/1.1 flag is given below.  This table and the names given below are for informational and descriptive purposes only.  This section is not normative.
 
 ~~~~
                              Server
@@ -261,13 +255,13 @@ No ALPN   |   RADIUS    RADIUS    RADIUS   Close
 forbid    |   RADIUS    RADIUS    RADIUS   Close
           |                                Note 1
           |
-allow     |   RADIUS    RADIUS    OK	  OK
+allow     |   RADIUS    RADIUS    OK      OK
           |   Note 3    Note 3
           |
 require   |   Close     Close     OK      OK
           |   Note 2    Note 2
 ~~~~
-{: #Header title="Possible outcomes for ALPN Negotiation"}
+{: title="Possible outcomes for ALPN Negotiation"}
 
 The table entries above have the following meaning:
 
@@ -303,7 +297,9 @@ Implementations of this specification MUST support TLS-PSK.
 
 In order to prevent down-bidding attacks, RADIUS servers which negotiate the "radius/1.1" protocol MUST associate that information with the session ticket.  On session resumption, the server MUST advertise only the capability to do "radius/1.1" for that session.  That is, even if the server configuration is "allow" for new connections, it MUST signal "radius/1.1" when resuming a session which had previously negotiated "radius/1.1".
 
-# Definition of RADIUS/1.1
+If a server sees that a client had previously negotiated RADIUS/1.1 for a session, but the client is now attempting to resume the sessions without signalling the use of RADIUS/1.1, the server MUST close the connection.  The server SHOULD send an appropate TLS error, such as no_application_protocol (120), or insufficient_security (71).  The server SHOULD log a descriptive message as described above.
+
+# RADIUS/1.1 Packet and Attribute Formats
 
 This section describes the application-layer data which is sent inside of (D)TLS when using the RADIUS/1.1 protocol.  Unless otherwise discussed herein, the application-layer data is unchanged from traditional RADIUS.  This protocol is only used when "radius/1.1" has been negotiated by both ends of a connection.
 
@@ -351,28 +347,10 @@ Length
 Token
 
 > The Token field is four octets, and aids in matching requests and
-> replies.  The RADIUS server can detect a duplicate request if it receives
+> replies, as a replacement for the Identifier field.  The RADIUS server can detect a duplicate request if it receives
 > the same Token value for two packets on a particular connection.
 >
-> All request / reply tracking MUST be done only on the Token field,
-> all other fields in the RADIUS packet header are ignored for the
-> purposes of deduplication.  This requirement simplifies implementations.
->
-> All packet deduplication MUST be done on a per-connection basis.  If two
-> RADIUS packets which are received on different connections contain
-> the same Token value, then those packets MUST be treated as distinct
-> (i.e. different) packets.
->
-> The Token field MUST be different for every unique packet sent over
-> a particular connection.  This unique value can be used to
-> match responses to requests, and to identify duplicate requests.
-> Other than those two requirements, there is no special meaning for
-> the Token field.
-> 
-> Systems generating a Token value for placement in a packet can do so
-> via any method they choose.  Systems receiving a Token value in a
-> packet MUST NOT interpret its value as anything other than an opaque
-> token.
+> Further requirements are given below in [](#sending-packets) for sending packets, and in [](#receiving-packets) for receiving packets.
 
 Reserved-2
 
@@ -388,27 +366,31 @@ Reserved-2
 
 This section describes in more detail how the Token field is used.
 
-### Sending Packets
+### Sending Packets {#sending-packets}
 
 A client which sends packets uses the Token field to increase the number of RADIUS packets which can be sent over one connection.
 
-The Token field MUST change for every new unique packet which is sent.  For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is (re)sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in {{RFC2866}} Section 5.2), the Token value MUST be changed.
+The Token field MUST change for every new unique packet which is sent on the same connection. For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is (re)sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in [RFC2866] Section 5.2), the Token value MUST be changed.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet sent has a unique Token value.
 
-The Token MUST be different for different packets on the same connection.  If a packet is retransmitted without any changes, then the retransmitted packet MUST use the same token value.  If the two packets have any differences, then the Token values for those two packets is required to be different.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet sent has a unique Token value.
+Systems generating the Token can do so via any method they choose, but for simplicity, it is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized to a random value, taken from a random number generator, whenever a new connection is opened.  The counter can then be incremented for every new packet which is sent.
 
-For simplicity, it is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized to a random value, taken from a random number generator, whenever a new connection is opened.  The counter can then be incremented for every new packet which is sent.  As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.
+As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value.
+
+Once a RADIUS response to a request has been received and there is no need to track the packet any longer, the Token value MAY be reused. This SHOULD be after a suitable delay to ensure that Token values do not conflict with outstanding packets.  Note that the counter method described above for generating Token values will automatically ensure a long delay between multiple uses of the same Token value, at the cost of maintaining a single 32-bit counter.  Any other method of generating unique and non-conflicting Token values is likely to require substantially more resources to track outstanding Token values.
 
 If a RADIUS client has multiple independent subsystems which send packets to a server, each subsystem MAY open a new port which is unique to that subsystem.  There is no requirement that all packets go over one particular connection.  That is, despite the use of a 32-bit Token field, RADIUS/1.1 clients are still permitted to open multiple source ports as discussed in {{RFC2865}} Section 2.5.
 
-### Receiving Packets
+### Receiving Packets  {#receiving-packets}
 
 A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.
 
-In previous RADIU specifications, the Identifier field could have the same value for different types of packets on the same connection, e.g. for Access-Request and Accounting-Request.  This overlap requires that RADIUS clients and servers track the Identifier field, not only on a per-connection basis, but also on a per-packet type basis.  This behavior adds complexity to implementations.
+We note that in previous RADIUS specifications, the Identifier field could have the same value for different types of packets on the same connection, e.g. for Access-Request and Accounting-Request.  This overlap required that RADIUS clients and servers track the Identifier field, not only on a per-connection basis, but also on a per-packet type basis.  This behavior adds complexity to implementations.
 
-When using RADIUS/1.1, implementations MUST instead do deduplication only on the Token field, on a per-connection basis.  A server MUST treat the Token as being an opaque field with no intrinsic meaning.  While the recommendation above is for the sender to use a counter, other implementations are possible, valid, and permitted.  For example, a system could use a pseudo-random number generator with a long period to generate unique values for the Token field.
+When using RADIUS/1.1, implementations MUST instead do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  While the recommendation above is for the sender to use a counter, other implementations are possible, valid, and permitted.  For example, a system could use a pseudo-random number generator with a long period to generate unique values for the Token field.
 
-This change from RADIUS means that the Identifier field is no longer useful.  It is RECOMMENDED that the Identifier field be set to zero for all RADIUS/1.1 packets.  In order to stay close to RADIUS, we still require that replies MUST use the same Identifier as was seen in the corresponding request.  There is no reason to make major changes to the RADIUS packet header.
+Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.
+
+This change from RADIUS means that the Identifier field is no longer useful.  The Reserved-1 field (previously used as the Identifier) MUST be set to zero for all RADIUS/1.1 packets.  RADIUS/1.1 Implementations MUST NOT examine this field or use it for packet tracking or deduplication.
 
 # Attribute handling
 
@@ -472,9 +454,7 @@ As the Message-Authentication-Code attribute is no longer used, the related MAC-
 
 ## CHAP, MS-CHAP, etc.
 
-While some attributes such as CHAP-Password, etc. depend on insecure cryptographic primitives such as MD5, these attributes are treated as opaque blobs when sent between a RADIUS client and server.  The contents of the attributes are not obfuscated, and they do not depend on the RADIUS shared secret.
-
-As a result, these attributes are unchanged in RADIUS/1.1.  We reiterate that this specification is largely a transport profile for RADIUS.  Other than a few attributes such as Message-Authenticator, the meaning of all attributes in this specification is identical to their meaning in RADIUS.  Only the "on the wire" encoding of some attributes change, and then only for attributes which are obfuscated using the RADIUS shared secret.  Those obfuscated attributes are now protected by the modern cryptography in TLS, instead of an "ad hoc" approach using MD5.
+While some attributes such as CHAP-Password, etc. depend on insecure cryptographic primitives such as MD5, these attributes are treated as opaque blobs when sent between a RADIUS client and server.  The contents of the attributes are not obfuscated, and they do not depend on the RADIUS shared secret.  As a result, these attributes are unchanged in RADIUS/1.1.
 
 A server implementing this specification can proxy CHAP, MS-CHAP, etc. without any issue.  A home server implementing this specification can authenticate CHAP, MS-CHAP, etc. without any issue.
 
@@ -494,9 +474,9 @@ Most of the differences between RADIUS and RADIUS/1.1 are in the packet header a
 
 {{RFC6613}} Section 2.6.5, and by extension {{RFC7360}} suggest that the Identifier value zero (0) be reserved for use with Status-Server as an application-layer watchdog.  This practice MUST NOT be used for RADIUS/1.1, as the Identifier field is no longer used.
 
-The rational for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packers.  If all 256 Identifier values had been used to send Access-Request packets, then there would be no Identifier value available for sending a Status-Server Packet.
+The rationale for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packers.  If all 256 Identifier values had been used to send Access-Request packets, then there would be no Identifier value available for sending a Status-Server Packet.
 
-In contrast, the Token field allows for 2^32 outstanding packets on one RADIUS/1.1 connection.  If there is a need to send a Status-Server packet, it is always possible to allocate a new value for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.  The edge condition is that there are 2^32 outstanding packets on one connection with no new Token value available for Status-Server.  In which case there are other serious issues, such allowing billions of packets to be oustanding.  The safest way forward is likely to just close the connection.
+In contrast, the Token field allows for 2^32 outstanding packets on one RADIUS/1.1 connection.  If there is a need to send a Status-Server packet, it is always possible to allocate a new value for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.  The edge condition is that there are 2^32 outstanding packets on one connection with no new Token value available for Status-Server.  In which case there are other serious issues, such as allowing billions of packets to be oustanding.  The safest way forward is likely to just close the connection.
 
 ## Proxies
 
@@ -555,7 +535,7 @@ Reference:  This document
 
 In hindsight, the decision to retain MD5 for RADIUS over TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
 
-Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, and Alexander Clouter for reviews and feedback.
+Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, Alexander Clouter, Michael Richardons, Hannes Tschofenig, and Matthew Netwon for reviews and feedback.
 
 # Changelog
 
@@ -610,5 +590,11 @@ draft-dekok-radext-radiusv11-05
 > Clarify naming.  "radius/1.1" is the ALPN name.  "RADIUS/1.1" is the transport profile.
 >
 > Clarify that future specifications do not need to make provisions for dealing with this transport profile.
+
+draft-dekok-radext-radiusv11-05
+
+> Typos and word smithing.
+>
+> Define and use "RADIUS over TLS" instead of RADIUS/(D)TLS.
 
 --- back
