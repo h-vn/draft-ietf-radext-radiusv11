@@ -194,7 +194,7 @@ Once a system has been configured to support ALPN, it is negotiated on a per-con
 
 The next step in defining RADIUS/1.1 is to define how ALPN is configured on the client and server, and to give more detailed requirements on ALPN configuration and operation.
 
-## Configuration of ALPN
+## Configuration of ALPN for RADIUS/1.1
 
 Clients or servers supporting this specification can do so by extending their TLS configuration through the addition of a new configuration flag, called "RADIUS/1.1" here.  The exact name given below does not need to be used, but it is RECOMMENDED that administrative interfaces or programming interfaces use a similar name in order to provide consistent terminology.  This flag controls how the implementations signal use of this protocol via ALPN.
 
@@ -596,5 +596,7 @@ draft-dekok-radext-radiusv11-05
 > Typos and word smithing.
 >
 > Define and use "RADIUS over TLS" instead of RADIUS/(D)TLS.
+>
+> Many cleanups and rework based on feedback from Matthew Newton.
 
 --- back
