@@ -1,7 +1,7 @@
 ---
 title: RADIUS Version 1.1
 abbrev: RADIUSv11
-docname: draft-dekok-radext-radiusv11-05
+docname: draft-ietf-radext-radiusv11-00
 updates: 6613 7360
 
 stand_alone: true
