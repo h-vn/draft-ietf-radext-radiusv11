@@ -1,6 +1,7 @@
-DRAFT	:= draft-dekok-radext-radiusv11
+DRAFT	:= $(basename $(wildcard draft-*.md))
 VERSION	:= $(shell sed -n -e'/docname/s,.*[^0-9]*-\([0-9]*\).*,\1,p' ${DRAFT}.md )
 EXAMPLES =
+EMAIL	= aland@freeradius.org
 
 ${DRAFT}-${VERSION}.txt: ${DRAFT}.txt
 	@cp ${DRAFT}.txt ${DRAFT}-${VERSION}.txt
@@ -19,7 +20,8 @@ ${DRAFT}-${VERSION}.txt: ${DRAFT}.txt
 	@xml2rfc --html -o $@ $?
 
 submit: ${DRAFT}.xml
-	@curl -S -F "user=aland@freeradius.org" -F "xml=@${DRAFT}.xml" https://datatracker.ietf.org/api/submit
+	@curl -S -F "user=${EMAIL}" -F "xml=@${DRAFT}.xml" https://datatracker.ietf.org/api/submit
+	@git tag ${DRAFT}-${VERSION}
 
 version:
 	@echo Version: ${VERSION}
