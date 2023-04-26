@@ -9,4 +9,41 @@ http://datatracker.ietf.org/wg/radext
 
 ## RADIUS and FIPS-140
 
-Historical RADIUS is not FIPS compatible.  This version can be used in a FIPS compatible environment.
+Historical RADIUS over UDP is not FIPS compatible.  This version can be used in a FIPS compatible environment.
+
+## Interoperability
+
+GPLv2 code for this implementation is available at https://github.com/FreeRADIUS/freeradius-server/tree/v3.2.x
+
+You will need to pass an extra option when building it:
+
+```
+./configure --with-radiusv11
+```
+
+In order to use it, the following configurations have to be updated:
+
+```
+client foo {
+	...
+	radiusv1_1 = allow
+}
+...
+
+home_server bar {
+	...
+	tls {
+		...
+		radiusv1_1 = allow
+	}
+}
+...
+
+listen {
+	...
+	tls {
+		...
+		radiusv1_1 = allow
+	}
+}
+```
