@@ -63,7 +63,7 @@ informative:
 venue:
   group: RADEXT
   mail: radext@ietf.org
-  github: freeradius/radiusv11.git
+  github: radext-wg/draft-ietf-radext-radiusv11.git
 
 --- abstract
 
