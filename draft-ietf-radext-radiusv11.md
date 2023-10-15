@@ -129,7 +129,7 @@ A major benefit of this extensions is that a home server which implements it can
 
 As for proxies, there was never a requirement that proxies implement CHAP or MS-CHAP authentication.  So far as a proxy is concerned, attributes relating to CHAP and MS-CHAP are simply opaque data that is transported unchanged to the next hop.  It is therefore possible for a FIPS-140 compliant proxy to transport authentication methods which depend on MD4 or MD5, so long as that data is forwarded to a home server which supports those methods.
 
-We reiterate that the decision to support (or not) any authentication method is entirely site local, and is not a requirement of this specification.  The contents or meaning of any RADIUS attribute other than Message-Authenticator (and similar attributes) are not modified.  The only change to the Message-Authenticator attribute is that is no longer used in RADIUS/1.1.
+We reiterate that the decision to support (or not) any authentication method is entirely site local, and is not a requirement of this specification.  The contents or meaning of any RADIUS attribute other than Message-Authenticator (and similar attributes) are not modified.  The only change to the Message-Authenticator attribute is that it is no longer used in RADIUS/1.1.
 
 Unless otherwise described in this document, all RADIUS requirements apply to this extension.  That is, this specification defines a transport profile for RADIUS.  It is not an entirely new protocol, and it defines only minor changes to the existing RADIUS protocol.  It does not change the RADIUS packet format, attribute format, etc.  This specification is compatible with all RADIUS attributes, past, present, and future.
 
@@ -350,7 +350,7 @@ While {{RFC7301}} does not discuss the possibility of the server sending a TLS a
 
 In contrast, there is no need for the client to signal that there are no compatible application protocol names.  The client sends zero or more protocol names, and the server responds as above.  From the point of view of the client, the list it sent results in either a connection failure, or a connection success.
 
-It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
+It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" it SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
 Note that there is no way for a client to signal if its RADIUS/1.1 configuration is set to "allow" or "require".  The client MUST signal "radius/1.1" via ALPN when it is configured with either value.  The only difference in behavior between the two values for the client is how it handles responses from the server.
 
@@ -572,7 +572,7 @@ However, implementations should be aware that passwords are often printable text
 
 Clients which send CHAP-Password attribute ({{RFC2865}} Section 5.3) in an Access-Request packet over a RADIUS/1.1 connection MUST also include a CHAP-Challenge attribute ({{RFC2865}} Section 5.40).
 
-Proxies may need to Access-Request packets over a non-RADIUS/1.1 transport and then forward those packets over a RADIUS/1.1 connection.  In that case, if the received Access-Request packet contains a CHAP-Password attribute but no CHAP-Challenge attribute, the proxy MUST create a CHAP-Challenge attribute in the proxied packet using the contents from the incoming Request Authenticator of the received packet.
+Proxies may need to receive Access-Request packets over a non-RADIUS/1.1 transport and then forward those packets over a RADIUS/1.1 connection.  In that case, if the received Access-Request packet contains a CHAP-Password attribute but no CHAP-Challenge attribute, the proxy MUST create a CHAP-Challenge attribute in the proxied packet using the contents from the incoming Request Authenticator of the received packet.
 
 ### Tunnel-Password
 
