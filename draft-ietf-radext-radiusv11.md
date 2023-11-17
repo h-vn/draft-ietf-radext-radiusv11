@@ -1,7 +1,7 @@
 ---
-title: RADIUS Version 1.1
+title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-02
+docname: draft-ietf-radext-radiusv11-03
 updates: 6614, 7360, 7930
 
 stand_alone: true
@@ -75,13 +75,13 @@ This extension can be seen as a transport profile for RADIUS, as it is not an en
 
 # Introduction
 
-The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Decades of cryptographic research has shown that MD5 is insecure, and that MD5 should no longer be used.  These discussions are most notably in {{RFC6151}}, and in Section 3 of {{RFC6421}}, among others.  In addition, the dependency on MD5 makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.
+The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Decades of cryptographic research has shown that MD5 is insecure, and that MD5 should no longer be used.  These discussions are most notably in {{RFC6151}}, and in Section 3 of {{RFC6421}}, among others.  In addition, the reliance on MD5 for security makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.
 
 While RADIUS originally used UDP transport, additional transport protocols were defined for TCP ({{RFC6613}}), TLS ({{RFC6614}}), and DTLS ({{RFC7360}}).  However, those transport protocols still relied on MD5.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, signing, and packet validation.
 
 The ensuing years have shown that it is important for RADIUS to remove its dependency on MD5.  The continued use of MD5 is no longer acceptable in a security-conscious environment.  The use of MD5 in {{RFC6614}} and {{RFC7360}} adds no security or privacy over that provided by TLS.  It is time to remove the use of MD5 from RADIUS.
 
-This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS over (D)TLS which removes their dependency on MD5.  Systems which implement this transport profile are therefore capable of being FIPS-140 compliant.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  A preliminary implementation has shown that only minor code changes are required to support RADIUS/1.1 on top of an existing RADIUS server.
+This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS over (D)TLS which removes their dependency on MD5.  Systems which implement this transport profile can be more easily verified to be FIPS-140 compliant, as those systems can operate without the use of MD5.  This extension can best be understood as a transport profile for RADIUS, rather than a whole-sale revision of the RADIUS protocol.  A preliminary implementation has shown that only minor code changes are required to support RADIUS/1.1 on top of an existing RADIUS server.
 
 While this document permits MD5 to be removed when using (D)TLS transports, it makes no changes to UDP or TCP transports.  It is therefore RECOMMENDED that those transports only be used within secure networks, and only used in situations where FIPS compliance is not an issue.
 
@@ -125,7 +125,7 @@ The following items are left unchanged from traditional TLS-based transports for
 
 * This extension uses the same ports (2083/tcp and 2083/udp) which are defined for RADIUS/TLS {{RFC6614}} and RADIUS/DTLS {{RFC7360}}.
 
-A major benefit of this extensions is that a home server which implements it can also choose to also be fully FIPS-140 compliant.  That is, a home server can remove all uses of MD4 and MD5.  In that case, however, the home server will not support CHAP, MS-CHAP, or any authentication method which uses MD4 or MD5.  The choice of which authentication method to accept is always left to the home server.  This specification does not change any authentication method carried in RADIUS, and does not mandate (or forbid) the use of any authentication method for any system.
+A major benefit of this extensions is that a home server which implement it can also be more easily verified for FIPS-140 compliance.  That is, a home server can remove all uses of MD4 and MD5, which means that those algorithms are provably not used for security purposes.  In that case, however, the home server will not support CHAP, MS-CHAP, or any authentication method which uses MD4 or MD5.  The choice of which authentication method to accept is always left to the home server.  This specification does not change any authentication method carried in RADIUS, and does not mandate (or forbid) the use of any authentication method for any system.
 
 As for proxies, there was never a requirement that proxies implement CHAP or MS-CHAP authentication.  So far as a proxy is concerned, attributes relating to CHAP and MS-CHAP are simply opaque data that is transported unchanged to the next hop.  It is therefore possible for a FIPS-140 compliant proxy to transport authentication methods which depend on MD4 or MD5, so long as that data is forwarded to a home server which supports those methods.
 
@@ -209,7 +209,7 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.  This section is not normative.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.
 
 1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
@@ -234,7 +234,7 @@ Clients or servers supporting this specification can do so by extending their TL
 When set, this flag contains the list of permitted ALPN versions in humanly readable form.  The implementation may allow multiple values in one variable, or allow multiple variables, or instead use two configuration for "minimum" and "maximum" allowed versions.  We assume here that there is one variable, which can be configured as:
 
 * unset,
-* containing value "1.0" - forbid RADIUS/1.1.
+* containing value "1.0" - require historic RADIUS/TLS
 * containing values "1.0" and "1.1" - allow either historic RADIUS/TLS or RADIUS/1.1
 * containing value "1.1" - require RADIUS/1.1.
 
@@ -252,6 +252,8 @@ Values
 >
 > Any connection MUST use historic RADIUS/TLS.
 >
+> This flag is included here only for logical completeness.  Instead, implementations of this specification SHOULD be configured to always use ALPN.
+>
 >> Client Behavior
 >>
 >>> The client MUST NOT send any protocol name via ALPN.
@@ -267,7 +269,7 @@ Values
 > "1.0" - send "radius/1.0", and use historical RADIUS/TLS.
 >
 >>  When the "Version" configuration flag is set to "1.0", the system will send the ALPN string "radius/1.0".  However, everything else about the connection is identical to historic RADIUS/TLS.
->
+>>
 >> This behavior is used to help administrators distinguish between systems which can use ALPN from ones which cannot use ALPN.  The act of sending the name "radius/1.0" is an implicit statement that the system is likely to also support "radius/1.1".
 >
 >> Client Behavior
@@ -310,9 +312,9 @@ Values
 >>>
 >>> If the server receives an ALPN name "radius/1.0" from the client, it MUST reply with ALPN "radius/1.0", and then use historic RADIUS/TLS.
 >>>
->>>  Note that the server may receive multiple ALPN names from the client.  So long as the server receives an ALPN name "radius/1.0" from the client, it is deemed to match, and the connection MUST use historic RADIUS/TLS.
+>>> If the server receives an ALPN name "radius/1.1" from the client, it MUST reply with ALPN "radius/1.1", and then use RADIUS/1.1
 >>>
->>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.0", it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
+>>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.0" or "radius/1.1", it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 
 > "1.1" -  Require the use of RADIUS/1.1
 >
@@ -330,7 +332,7 @@ Values
 >>
 >> Server Behavior
 >>
->>> If the server receives no ALPN name from the client, it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
+>>> If the server receives no ALPN name from the client, it MAY reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 >>>
 >>> If the server receives an ALPN name "radius/1.0" from the client, it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 >>>
@@ -370,7 +372,7 @@ The purpose of this packet is not to have the other end of the connection automa
 
 ### Tabular Summary
 
-The preceding text gives a large number of recommendations.  In order to give a simpler description of the outcomes, a table of possible behaviors for client/server values of the Version flag is given below.  This table and the names given below are for informational and descriptive purposes only.  This section is not normative.
+The preceding text gives a large number of recommendations.  In order to give a simpler description of the outcomes, a table of possible behaviors for client/server values of the Version flag is given below.  This table and the names given below are for informational and descriptive purposes only.
 
 ~~~~
                              Server
@@ -391,21 +393,21 @@ The table entries above have the following meaning:
 
 > Alert
 >
->> The client sends either no ALPN, or the server does not agree to the clients ALPN proposal.  The server replies with a TLS alert of "no_application_protocol" (120), and then closes the TLS connection.
+>> The client sends ALPN, and the server does not agree to the clients ALPN proposal.  The server replies with a TLS alert of "no_application_protocol" (120), and then closes the TLS connection.
 >>
->> As noted in the previous section, the server may send a Protocol-Error packet to the client before closing the connection.
+>> As the server replies with a TLS alert, the Protocol-Error packet is not used here.
 >
 > Close-C
 >
 >> The client sends ALPN, but the server does not respond with ALPN.  The client closes the connection.
 >>
->> As noted in the previous section, the client may send a Protocol-Error packet to the server before closing the connection.
+>> As noted in the previous section, the client MAY send a Protocol-Error packet to the server before closing the connection.
 >
 > Close-S
 >
 >> The client does not send ALPN string(s), but the server requires ALPN.  The server closes the connection.
 >>
->> As noted in the previous section, the server may send a Protocol-Error packet to the client before closing the connection.
+>> As noted in the previous section, the server MAY send a Protocol-Error packet to the client before closing the connection.
 >
 > RadSec
 >
@@ -662,7 +664,7 @@ All crypto-agility needed or used by this specification is implemented in TLS.  
 
 The Error-Cause attribute is defined in {{RFC5176}}. The "Table of Attributes" section given in {{RFC5176}} Section 3.6 permits that attribute to appear in CoA-NAK and Disconnect-NAK packets.  As no other packet type is listed, the implication is that the Error-Cause attribute cannot appear in any other packet.  {{RFC7930}} also permits Error-Cause to appear in Protocol-Error packets.
 
-However, {{?RFC5080}} Section 2.6.1 suggests that Error-Cause may appear in Access-Reject packets.  No reference is given for this change from {{RFC5176}}.  There is not even an acknowledgment that this suggestion is a change from any previous specification.  We correct that issue here.
+However, {{?RFC5080}} Section 2.6.1 suggests that Error-Cause may appear in Access-Reject packets.  No explanation is given for this change from {{RFC5176}}.  There is not even an acknowledgment that this suggestion is a change from any previous specification.  We correct that issue here.
 
 This specification updates {{RFC5176}} to allow the Error-Cause attribute to appear in Access-Reject packets.  It is RECOMMENDED that implementations include the Error-Cause attribute in Access-Reject packets where appropriate.
 
@@ -704,9 +706,14 @@ The primary focus of this document is addressing security considerations for RAD
 
 # IANA Considerations
 
-IANA is requested to update the "TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs" registry with one new entry:
+IANA is requested to update the "TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs" registry with two new entries:
 
 ~~~~
+Protocol: radius/1.0
+Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x30
+    ("radius/1.0")
+Reference:  This document
+
 Protocol: radius/1.1
 Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x31
     ("radius/1.1")
@@ -812,5 +819,13 @@ draft-ietf-radext-radiusv11-02
 > Add term "historic RADIUS/TLS" as it is simpler than more awkward "6614 or 7360".
 >
 > Re-add ALPN "radius/1.0" based on comments from Heikki.  It signals that the system is ALPN-capable, among other.
+
+draft-ietf-radext-radiusv11-03
+
+>  Rename to "RADIUS ALPN and removing MD5"
+>
+> Add a few things missed when re-adding "radius/1.0"
+>
+> Clarify wording in a number of places.
 
 --- back
