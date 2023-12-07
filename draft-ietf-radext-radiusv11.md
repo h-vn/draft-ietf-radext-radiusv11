@@ -213,7 +213,7 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who are not familier with the details of {{RFC7301}}.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who are not familiar with the details of {{RFC7301}}.
 
 1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
@@ -352,7 +352,7 @@ We reiterate that systems implementing this specification, but which are configu
 
 While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.
 
-However, some TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.   This limitation means that it is not always be possible for an application to send the TLS alert as discussed in the previous section.  The impact is that an implementation may attempt to connect, and then see that the connection fails, but not be able to determine why that failure has occurred.  Implementors and administrators should be aware that unexplained connection failures may be due to ALPN negotiation issues.
+However, some TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.   This limitation means that it is not always possible for an application to send the TLS alert as discussed in the previous section.  The impact is that an implementation may attempt to connect, and then see that the connection fails, but not be able to determine why that failure has occurred.  Implementers and administrators should be aware that unexplained connection failures may be due to ALPN negotiation issues.
 
 The server MAY send this alert during the ClientHello, if it requires ALPN but does not receive it.  That is, there may not always be a need to wait for the TLS connection to be fully established before realizing that no common ALPN protocol can be negotiated.
 
