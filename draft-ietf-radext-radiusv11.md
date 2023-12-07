@@ -211,7 +211,7 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who do not need to understand {{RFC7301}} in detail.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who are not familier with the details of {{RFC7301}}.
 
 1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
@@ -219,7 +219,7 @@ Once a system has been configured to support ALPN, it is negotiated on a per-con
 
 > If the server finds no acceptable common protocols (ALPN or otherwise), it closes the connection.
 
-3) Otherwise, the server return a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol.
+3) Otherwise, the server returns a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol.
 
 > If the client did not signal ALPN, or the server does not accept the ALPN proposal, the server does not reply with any ALPN name.
 
@@ -268,7 +268,7 @@ Values
 >>>
 >>> Note that if the client sends "radius/1.1", the client will see that the server failed to acknowledge this request, and will close the connection.  For any other client configuration, the connection will use historic RADIUS/TLS.
 
-> "1.0" - send "radius/1.0", and use historical RADIUS/TLS.
+> "1.0" - send "radius/1.0", and use historic RADIUS/TLS.
 >
 >>  When the "Version" configuration flag is set to "1.0", the system will send the ALPN string "radius/1.0".  However, everything else about the connection is identical to historic RADIUS/TLS.
 >>
@@ -604,7 +604,7 @@ For proxies, the Message-Authenticator attribute was always defined as being cre
 
 A proxy may receive an Access-Request packet over a RADIUS/1.1 connection, and then forward that packet over a RADIUS/UDP or a RADIUS/TCP connection.  In that situation, the proxy SHOULD add a Message-Authenticator attribute to every Access-Request packet which is sent over an insecure transport protocol.
 
-The original text in {{RFC3579}} Section 3.3, "Note 1" paragraph required that a server suggested that the Message-Authenticator attribute be present for certain Access-Request packets.  It also required the use of Message-Authenticator when the Access-Request packet contained an EAP-Message attribute.  Experience has shown that some RADIUS clients never use the Message-Authenticator, even for the situations where its use is suggested.
+The original text in {{RFC3579}} Section 3.3, "Note 1" paragraph required that the Message-Authenticator attribute be present for certain Access-Request packets.  It also required the use of Message-Authenticator when the Access-Request packet contained an EAP-Message attribute.  Experience has shown that some RADIUS clients never use the Message-Authenticator, even for the situations where its use is suggested.
 
 When the Message-Authenticator attribute is missing from Access-Request packets, it is often possible to trivially forge or replay those packets.  As such, this document RECOMMENDS that RADIUS clients always include Message-Authenticator in Access-Request packets when using UDP or TCP transport.  As the scope of this document is limited to defining RADIUS/1.1, we cannot mandate that behavior here.  Instead, we can note that there are no known negatives to this behavior, and there are definite positives, such as increased security.
 
@@ -676,7 +676,7 @@ That is, the reason for sending the Access-Reject packet (or Protocol-Error pack
 
 For example, a proxy may normally forward Access-Request packets which contain EAP-Message attributes.  The proxy can determine if the contents of the EAP-Message are invalid, for example if the first octet has value larger than 4.  In that case, there may be no benefit to forwarding the packet, as the home server will reject it.  It may then then possible for the proxy (with the knowledge and consent of involved parties) to immediately reply with an Access-Reject containing an Error-Cause attribute with value 202 for "Invalid EAP Packet (Ignored)".
 
-Another possibility is that if a proxy is configured to forward packets for a particular realm, but it has determined that there are no available connections to the next hop for that realm.  In that case, it is may be possible for the proxy (again with the knowledge and consent of involved parties) to reply with an Access-Reject containing an Error-Cause attribute with value 502 for "Request Not Routable (Proxy)"
+Another possibility is that if a proxy is configured to forward packets for a particular realm, but it has determined that there are no available connections to the next hop for that realm.  In that case, it may be possible for the proxy (again with the knowledge and consent of involved parties) to reply with an Access-Reject containing an Error-Cause attribute with value 502 for "Request Not Routable (Proxy)"
 
 These examples are given only for illustrative and informational purposes.  While it is useful to return an informative value for the Error-Cause attribute, proxies can only modify the traffic they forward with the explicit knowledge and consent of all involved parties.
 
@@ -732,6 +732,8 @@ Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, Alexander Clouter, Mi
 
 # Changelog
 
+(This section to be removed by the RFC editor.)
+
 draft-dekok-radext-sradius-00
 
 > Initial Revision
@@ -783,8 +785,6 @@ draft-dekok-radext-radiusv11-05
 > Clarify naming.  "radius/1.1" is the ALPN name.  "RADIUS/1.1" is the transport profile.
 >
 > Clarify that future specifications do not need to make provisions for dealing with this transport profile.
-
-draft-dekok-radext-radiusv11-05
 
 > Typos and word smithing.
 >
