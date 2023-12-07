@@ -2,7 +2,7 @@
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
 docname: draft-ietf-radext-radiusv11-04
-updates: 6614, 7360, 7930
+updates: 5176, 6614, 7360
 
 stand_alone: true
 ipr: trust200902
@@ -111,7 +111,9 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 * Attributes such as User-Password, Tunnel-Password, and MS-MPPE keys are sent encoded as "text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5), without the previous MD5-based obfuscation.  This obfuscation is no longer necessary, as the data is secured and kept private through the use of TLS,
 
-* Future RADIUS specifications are forbidden from defining new cryptographic primitives.
+* Future RADIUS specifications are forbidden from defining new cryptographic primitives,
+
+* {{RFC5176}} is updated to allow the Error-Cause attribute to appear in Access-Reject packets.
 
 The following items are left unchanged from traditional TLS-based transports for RADIUS:
 
