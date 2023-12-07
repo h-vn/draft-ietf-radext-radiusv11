@@ -145,6 +145,8 @@ In short, when negotiated on a connection, the RADIUS/1.1 transport profile perm
 
 {::boilerplate bcp14}
 
+The following list describes the terminology and abbreviations which are used in this document.
+
 * ALPN
 
 > Application-Layer Protocol Negotiation, as defined in {{RFC7301}}.
