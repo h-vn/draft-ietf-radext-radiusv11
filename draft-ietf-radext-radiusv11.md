@@ -348,7 +348,9 @@ Once administrators verify that both ends of a connection support RADIUS/1.1, an
 
 We reiterate that systems implementing this specification, but which are configured with setting that forbid RADIUS/1.1, will behave exactly the same as systems which do not implement this specification.  Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
 
-While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.  We recognize that this behavior may not always be possible or available in any underlying TLS implementation.
+While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.
+
+However, some TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.   This limitation means that it is not always be possible for an application to send the TLS alert as discussed in the previous section.  The impact is that an implementation may attempt to connect, and then see that the connection fails, but not be able to determine why that failure has occurred.  Implementors and administrators should be aware that unexplained connection failures may be due to ALPN negotiation issues.
 
 The server MAY send this alert during the ClientHello, if it requires ALPN but does not receive it.  That is, there may not always be a need to wait for the TLS connection to be fully established before realizing that no common ALPN protocol can be negotiated.
 
@@ -359,8 +361,6 @@ Whether or not the server sent a TLS alert for no compatible ALPN, it MUST close
 In contrast, there is no need for the client to signal that there are no compatible application protocol names.  The client sends zero or more protocol names, and the server responds as above.  From the point of view of the client, the list it sent results in either a connection failure, or a connection success.
 
 It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" it SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
-
-Unfortunately when ALPN negotiation fails, it is not always possible to send TLS alert of "no_application_protocol" (120).  {{RFC7301}} Section 3.2 suggests that this alert can only be sent by the server which supports ALPN, in response to a client which requests ALPN.  However, if either party does not support ALPN, then there are no provisions for this alert to be sent.  In addition, the TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.  So if one party supports ALPN while the other does not, it is not possible for the system supporting ALPN to send any kind of TLS alert which informs the other party that ALPN is required.
 
 ### Using Protocol-Error for Application Signaling
 
