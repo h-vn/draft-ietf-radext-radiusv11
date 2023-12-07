@@ -105,7 +105,7 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 * The now-unused Request and Response Authenticator fields have been repurposed to carry an opaque Token which identifies requests and responses,
 
-* The Identifier field is no longer used, and has been replaced by the Token field,
+* The Identifier field is no longer used, and its functionality has been replaced by the Token field,
 
 * The Message-Authenticator attribute ({{RFC3579}} Section 3.2) is not sent in any packet, and if received is ignored,
 
@@ -201,7 +201,7 @@ The ALPN name defined for RADIUS/1.1 is as follows:
 
 Where ALPN is not configured or is not received in a TLS connection, systems supporting ALPN MUST NOT use RADIUS/1.1.
 
-Where ALPN is configured, the client signals support by sending the ALPN string "radius/1.1".  The server can accept this proposal and reply with the ALPN string "radius/1.1", or reject this proposal, and not reply with any ALPN string.
+Where ALPN is configured, the client signals support by sending the ALPN string "radius/1.1".  The server can accept this proposal and reply with the ALPN string "radius/1.1", or reject this proposal, and not reply with any ALPN string.  A full walk-through of the protocol negotiation is given below.
 
 Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which causes a connection to use "radius/1.1", but which does not signal that protocol via ALPN.
 
@@ -340,15 +340,19 @@ Values
 >>>
 >>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.1", it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 
-By requiring the "allow" setting to be the default, implementations will be compatible with both historic RADIUS/TLS connections, and with RADIUS/1.1 connections.  It is therefore the only default setting which will not result in connection errors.
+By requiring the the default configuration to allow historic RADIUS/TLS, implementations will be compatible with both historic RADIUS/TLS connections, and with RADIUS/1.1 connections.  It is therefore the only default setting which will not result in connection errors.
 
 Once administrators verify that both ends of a connection support RADIUS/1.1, and that it has been negotiated successfully, the configurations SHOULD be updated to require RADIUS/1.1.  The connections should be monitored after this change to ensure that the systems continue to remain connected.  If there are connection issues, then the configuration should be reverted to using "allow", until such time as the connection problems have been resolved.
 
-We reiterate that systems implementing this specification, but configured with setting which forbid RADIUS/1.1, will behave exactly the same as systems which do not implement this specification.  Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
+We reiterate that systems implementing this specification, but which are configured with setting that forbid RADIUS/1.1, will behave exactly the same as systems which do not implement this specification.  Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
 
-If a server determines that there are no compatible application protocol names, then as per {{RFC7301}} Section 3.2, it MUST send a TLS alert of "no_application_protocol" (120), which signals to the other end that there is no compatible application protocol.  It MUST then close the connection.  This requirement applies to both new sessions, and to resumed sessions.
+While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.  We recognize that this behavior may not always be possible or available in any underlying TLS implementation.
 
-While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.  We recognize that this behavior may not always be possible or available in any underlying TLS implementation.  The server MAY send this alert during the ClientHello, if it requires ALPN but does not receive it.  That is, there may not always be a need to wait for the TLS connection to be fully established before realizing that no common ALPN protocol can be negotiated.
+The server MAY send this alert during the ClientHello, if it requires ALPN but does not receive it.  That is, there may not always be a need to wait for the TLS connection to be fully established before realizing that no common ALPN protocol can be negotiated.
+
+Where the client does perform signaling via ALPN and the server determines that there is no compatible application protocol name, then as per {{RFC7301}} Section 3.2, it MUST send a TLS alert of "no_application_protocol" (120).
+
+Whether or not the server sent a TLS alert for no compatible ALPN, it MUST close the connection.  The above requirements on ALPN apply to both new sessions, and to resumed sessions.
 
 In contrast, there is no need for the client to signal that there are no compatible application protocol names.  The client sends zero or more protocol names, and the server responds as above.  From the point of view of the client, the list it sent results in either a connection failure, or a connection success.
 
@@ -709,12 +713,12 @@ The primary focus of this document is addressing security considerations for RAD
 IANA is requested to update the "TLS Application-Layer Protocol Negotiation (ALPN) Protocol IDs" registry with two new entries:
 
 ~~~~
-Protocol: radius/1.0
+Protocol: RADIUS/1.0
 Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x30
     ("radius/1.0")
 Reference:  This document
 
-Protocol: radius/1.1
+Protocol: RADIUS/1.1
 Id. Sequence: 0x72 0x61 0x64 0x69 0x75 0x73 0x2f 0x31 0x2e 0x31
     ("radius/1.1")
 Reference:  This document
