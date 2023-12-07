@@ -105,7 +105,7 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 * The now-unused Request and Response Authenticator fields have been repurposed to carry an opaque Token which identifies requests and responses,
 
-* The Identifier field is no longer used, and its functionality has been replaced by the Token field,
+* The functionality of the Identifier field has been replaced by the Token field, and the space previously taken by the Identifier field is now reserved and unused,
 
 * The Message-Authenticator attribute ({{RFC3579}} Section 3.2) is not sent in any packet, and if received is ignored,
 
@@ -488,7 +488,9 @@ Reserved-1
 
 > The Reserved-1 field is one octet.  It MUST be set to zero for all packets.
 >
-> This field was previously called "Identifier" in RADIUS.  It is now unused, as the Token field replaces it as the way to identify and requests, and to associate responses with requests.  The Reserved-1 field MUST be ignored when receiving a packet.
+> This field was previously used as the "Identifier" in historic RADIUS/TLS.  It is now unused, as the Token field replaces it both as the way to identify requests, and to associate responses with requests.
+>
+> The Reserved-1 field MUST be ignored when receiving a packet.  When sending packets, the Reserved-1 field MUST be set to zero.
 
 Length
 
