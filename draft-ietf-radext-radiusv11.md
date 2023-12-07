@@ -502,6 +502,8 @@ Token
 > replies, as a replacement for the Identifier field.  The RADIUS server can detect a duplicate request if it receives
 > the same Token value for two packets on a particular connection.
 >
+> All values are possible for the Token field.  Implementations MUST treat the Token as an opaque blob when comparing Token values.
+>
 > Further requirements are given below in [](#sending-packets) for sending packets, and in [](#receiving-packets) for receiving packets.
 
 Reserved-2
@@ -646,7 +648,7 @@ Most of the differences between RADIUS and RADIUS/1.1 are in the packet header a
 
 The rationale for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packets.  If all 256 Identifier values had been used to send Access-Request packets, then there would be no Identifier value available for sending a Status-Server packet.
 
-In contrast, the Token field allows for 2^32 outstanding packets on one RADIUS/1.1 connection.  If there is a need to send a Status-Server packet, it is always possible to allocate a new value for the Token field.  Similarly, the value zero (0) for the Token field has no special meaning.  The edge condition is that there are 2^32 outstanding packets on one connection with no new Token value available for Status-Server.  In which case there are other serious issues, such as allowing billions of packets to be outstanding.  The safest way forward in that case is likely to just close the connection.
+In contrast, the Token field allows for 2^32 outstanding packets on one RADIUS/1.1 connection.  If there is a need to send a Status-Server packet, it is nearly always possible to allocate a new value for the Token field.  If instead there are 2^32 outstanding packets for one connection, then it is likely that something has gone catastrophically wrong.  In that case, the safest way forward is likely to just close the connection.
 
 ## Proxies
 
