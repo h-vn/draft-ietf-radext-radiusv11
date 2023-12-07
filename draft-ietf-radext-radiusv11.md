@@ -133,7 +133,7 @@ We reiterate that the decision to support (or not) any authentication method is 
 
 Unless otherwise described in this document, all RADIUS requirements apply to this extension.  That is, this specification defines a transport profile for RADIUS.  It is not an entirely new protocol, and it defines only minor changes to the existing RADIUS protocol.  It does not change the RADIUS packet format, attribute format, etc.  This specification is compatible with all RADIUS attributes, past, present, and future.
 
-This specification is compatible with existing implementations of RADIUS/TLS and RADIUS/DTLS.  There is no need to define an ALPN name for those protocols, as implementations can simply not send an ALPN name when those protocols are used.  Backwards compatibility with existing implementations is both required, and assumed.
+This specification is compatible with existing implementations of RADIUS/TLS and RADIUS/DTLS.  Systems which implement this standard are mandated to fall back to historic RADIUS/TLS if no ALPN signaling is performed.
 
 This specification is compatible with all past and future RADIUS specifications.  There is no need for any RADIUS specification to mention this transport profile by name, or to make provisions for this specification.  This document defines how to transform RADIUS into RADIUS/1.1, and no further discussion of that transformation is necessary.
 
@@ -332,7 +332,7 @@ Values
 >>
 >> Server Behavior
 >>
->>> If the server receives no ALPN name from the client, it MAY reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
+>>> If the server receives no ALPN name from the client, it MAY reply with a TLS alert of "no_application_protocol" (120).  It MUST then close the TLS connection.
 >>>
 >>> If the server receives an ALPN name "radius/1.0" from the client, it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 >>>
@@ -342,7 +342,7 @@ Values
 
 By requiring the the default configuration to allow historic RADIUS/TLS, implementations will be compatible with both historic RADIUS/TLS connections, and with RADIUS/1.1 connections.  It is therefore the only default setting which will not result in connection errors.
 
-Once administrators verify that both ends of a connection support RADIUS/1.1, and that it has been negotiated successfully, the configurations SHOULD be updated to require RADIUS/1.1.  The connections should be monitored after this change to ensure that the systems continue to remain connected.  If there are connection issues, then the configuration should be reverted to using "allow", until such time as the connection problems have been resolved.
+Once administrators verify that both ends of a connection support RADIUS/1.1, and that it has been negotiated successfully, the configurations SHOULD be updated to require RADIUS/1.1.  The connections should be monitored after this change to ensure that the systems continue to remain connected.  If there are connection issues, then the configuration should be reverted to using allow both "radius/1.0" and "radius/1.1" ALPN strings, until such time as the connection problems have been resolved.
 
 We reiterate that systems implementing this specification, but which are configured with setting that forbid RADIUS/1.1, will behave exactly the same as systems which do not implement this specification.  Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
 
@@ -357,10 +357,6 @@ Whether or not the server sent a TLS alert for no compatible ALPN, it MUST close
 In contrast, there is no need for the client to signal that there are no compatible application protocol names.  The client sends zero or more protocol names, and the server responds as above.  From the point of view of the client, the list it sent results in either a connection failure, or a connection success.
 
 It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" it SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
-
-Note that there is no way for a client to signal if its RADIUS/1.1 configuration is set to "allow" or "require".  The client MUST signal "radius/1.1" via ALPN when it is configured with either value.  The only difference in behavior between the two values for the client is how it handles responses from the server.
-
-Similarly, there is no way for a server to signal if its RADIUS/1.1 configuration is set to "allow" or "require".  In both cases if it receives "radius/1.1" from the client via ALPN, the server MUST reply with "radius/1.1", and agree to that negotiation.  The only difference in behavior between the two values for the server is how it handles the situation when no ALPN is signaled from the client.
 
 Unfortunately when ALPN negotiation fails, it is not always possible to send TLS alert of "no_application_protocol" (120).  {{RFC7301}} Section 3.2 suggests that this alert can only be sent by the server which supports ALPN, in response to a client which requests ALPN.  However, if either party does not support ALPN, then there are no provisions for this alert to be sent.  In addition, the TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.  So if one party supports ALPN while the other does not, it is not possible for the system supporting ALPN to send any kind of TLS alert which informs the other party that ALPN is required.
 
@@ -445,7 +441,7 @@ Finally, defining ALPN strings for all known RADIUS versions will make it easier
 
 In order to prevent down-bidding attacks, RADIUS systems which negotiate the "radius/1.1" protocol MUST associate that information with the session ticket, and enforce the use of "radius/1.1" on session resumption.  That is, if "radius/1.1" was negotiated for a session, both clients and servers MUST behave as if the RADIUS/1.1 flag was set to "require" for that session.
 
-A client which is resuming a "radius/1.1" connection MUST advertise only the capability to do "radius/1.1" for the resumed session.  That is, even if the client configuration is "allow" for new connections, it MUST signal "radius/1.1" when resuming a session which had previously negotiated "radius/1.1".
+A client which is resuming a "radius/1.1" connection MUST advertise only the capability to do "radius/1.1" for the resumed session.  That is, even if the client configuration allows historic RADIUS/TLS for new connections, it MUST signal "radius/1.1" when resuming a session which had previously negotiated "radius/1.1".
 
 Similarly, when a server does resumption for a session which had previously negotiated "radius/1.1",   If the client attempts to resume the sessions without signaling the use of RADIUS/1.1, the server MUST close the connection.  The server MUST send an appropriate TLS error, and also SHOULD log a descriptive message as described above.
 
@@ -833,5 +829,9 @@ draft-ietf-radext-radiusv11-03
 > Add a few things missed when re-adding "radius/1.0"
 >
 > Clarify wording in a number of places.
+
+draft-ietf-radext-radiusv11-04
+
+> Address github issues 3..9
 
 --- back
