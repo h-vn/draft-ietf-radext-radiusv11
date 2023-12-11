@@ -75,7 +75,7 @@ This extension can be seen as a transport profile for RADIUS, as it is not an en
 
 # Introduction
 
-The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Decades of cryptographic research has shown that MD5 is insecure, and that MD5 should no longer be used.  These discussions are most notably in {{RFC6151}}, and in Section 3 of {{RFC6421}}, among others.  In addition, the reliance on MD5 for security makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.
+The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Decades of cryptographic research has shown that MD5 is insecure, and that MD5 should no longer be used.  These discussions are most notably in {{RFC6151}}, and in {{RFC6421, Section 3}}, among others.  In addition, the reliance on MD5 for security makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.
 
 While RADIUS originally used UDP transport, additional transport protocols were defined for TCP ({{RFC6613}}), TLS ({{RFC6614}}), and DTLS ({{RFC7360}}).  However, those transport protocols still relied on MD5.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, signing, and packet validation.
 
@@ -107,9 +107,9 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 * The functionality of the Identifier field has been replaced by the Token field, and the space previously taken by the Identifier field is now reserved and unused,
 
-* The Message-Authenticator attribute ({{RFC3579}} Section 3.2) is not sent in any packet, and if received is ignored,
+* The Message-Authenticator attribute ({{RFC3579, Section 3.2}}) is not sent in any packet, and if received is ignored,
 
-* Attributes such as User-Password, Tunnel-Password, and MS-MPPE keys are sent encoded as "text" ({{RFC8044}} Section 3.4) or "octets" ({{RFC8044}} Section 3.5), without the previous MD5-based obfuscation.  This obfuscation is no longer necessary, as the data is secured and kept private through the use of TLS,
+* Attributes such as User-Password, Tunnel-Password, and MS-MPPE keys are sent encoded as "text" ({{RFC8044, Section 3.4}}) or "octets" ({{RFC8044, Section 3.5}}), without the previous MD5-based obfuscation.  This obfuscation is no longer necessary, as the data is secured and kept private through the use of TLS,
 
 * Future RADIUS specifications are forbidden from defining new cryptographic primitives,
 
@@ -117,7 +117,7 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 The following items are left unchanged from traditional TLS-based transports for RADIUS:
 
-* The RADIUS packet header is the same size, and the Code and Length fields ({{RFC2865}} Section 3) have the same meaning as before,
+* The RADIUS packet header is the same size, and the Code and Length fields ({{RFC2865, Section 3}}) have the same meaning as before,
 
 * The default 4K packet size is unchanged, although {{RFC7930}} can still be leveraged to use larger packets,
 
@@ -356,7 +356,7 @@ However, some TLS implementations may not permit an application to send a TLS al
 
 The server MAY send this alert during the ClientHello, if it requires ALPN but does not receive it.  That is, there may not always be a need to wait for the TLS connection to be fully established before realizing that no common ALPN protocol can be negotiated.
 
-Where the client does perform signaling via ALPN and the server determines that there is no compatible application protocol name, then as per {{RFC7301}} Section 3.2, it MUST send a TLS alert of "no_application_protocol" (120).
+Where the client does perform signaling via ALPN and the server determines that there is no compatible application protocol name, then as per {{RFC7301, Section 3.2}}, it MUST send a TLS alert of "no_application_protocol" (120).
 
 Whether or not the server sent a TLS alert for no compatible ALPN, it MUST close the connection.  The above requirements on ALPN apply to both new sessions, and to resumed sessions.
 
@@ -439,7 +439,7 @@ Finally, defining ALPN strings for all known RADIUS versions will make it easier
 
 ## Session Resumption
 
-{{RFC7301}} Section 3.1 states that ALPN is negotiated on each connection, even if session resumption is used:
+{{RFC7301, Section 3.1}} states that ALPN is negotiated on each connection, even if session resumption is used:
 
 > When session resumption or session tickets {{?RFC5077}} are used, the previous contents of this extension are irrelevant, and only the values in the new handshake messages are considered.
 
@@ -524,7 +524,7 @@ This section describes in more detail how the Token field is used.
 
 ### Sending Packets {#sending-packets}
 
-The Token field MUST change for every new unique packet which is sent on the same connection. For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is (re)sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in [RFC2866] Section 5.2), the Token value MUST be changed.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet which is sent has a unique Token value.
+The Token field MUST change for every new unique packet which is sent on the same connection. For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is (re)sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in {{RFC2866, Section 5.2}}), the Token value MUST be changed.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet which is sent has a unique Token value.
 
 Systems generating the Token can do so via any method they choose.  For simplicity, it is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized to a random value, taken from a random number generator, whenever a new connection is opened.  The counter can then be incremented for every new packet that the client sends.
 
@@ -568,39 +568,39 @@ We note that as the RADIUS shared secret is no longer used in this specification
 
 ### User-Password
 
-The User-Password attribute ({{RFC2865}} Section 5.2) MUST be encoded the same as any other attribute of data type 'string' ({{RFC8044}} Section 3.5).
+The User-Password attribute ({{RFC2865, Section 5.2}}) MUST be encoded the same as any other attribute of data type 'string' ({{RFC8044, Section 3.5}}).
 
-The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865}} Section 5.2 for compatibility with legacy transports.
+The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865, Section 5.2}} for compatibility with legacy transports.
 
-Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.4.
+Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044, Section 3.4}}.
 
 However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for User-Password.
 
 ### CHAP-Challenge
 
-{{RFC2865}} Section 5.3 allows for the CHAP challenge to be taken from either the CHAP-Challenge attribute ({{RFC2865}} Section 5.40), or the Request Authenticator field.  Since RADIUS/1.1 connections no longer use a Request Authenticator field, it is no longer possible to use the Request Authenticator field as the CHAP-Challenge when this transport profile is used.
+{{RFC2865, Section 5.3}} allows for the CHAP challenge to be taken from either the CHAP-Challenge attribute ({{RFC2865, Section 5.40}}), or the Request Authenticator field.  Since RADIUS/1.1 connections no longer use a Request Authenticator field, it is no longer possible to use the Request Authenticator field as the CHAP-Challenge when this transport profile is used.
 
-Clients which send CHAP-Password attribute ({{RFC2865}} Section 5.3) in an Access-Request packet over a RADIUS/1.1 connection MUST also include a CHAP-Challenge attribute ({{RFC2865}} Section 5.40).
+Clients which send CHAP-Password attribute ({{RFC2865, Section 5.3}}) in an Access-Request packet over a RADIUS/1.1 connection MUST also include a CHAP-Challenge attribute ({{RFC2865, Section 5.40}}).
 
 Proxies may need to receive Access-Request packets over a non-RADIUS/1.1 transport and then forward those packets over a RADIUS/1.1 connection.  In that case, if the received Access-Request packet contains a CHAP-Password attribute but no CHAP-Challenge attribute, the proxy MUST create a CHAP-Challenge attribute in the proxied packet using the contents from the incoming Request Authenticator of the received packet.
 
 ### Tunnel-Password
 
-The Tunnel-Password attribute ({{RFC2868}} Section 3.5) MUST be encoded the same as any other attribute of data type 'string' which contains a tag, such as Tunnel-Client-Endpoint ({{RFC2868}} Section 3.3).  Since the attribute is no longer obfuscated in RADIUS/1.1, there is no need for a Salt field or Data-Length fields as described in {{RFC2868}} Section 3.5, and the textual value of the password can simply be encoded as-is.
+The Tunnel-Password attribute ({{RFC2868, Section 3.5}}) MUST be encoded the same as any other attribute of data type 'string' which contains a tag, such as Tunnel-Client-Endpoint ({{RFC2868, Section 3.3}}).  Since the attribute is no longer obfuscated in RADIUS/1.1, there is no need for a Salt field or Data-Length fields as described in {{RFC2868, Section 3.5}}, and the textual value of the password can simply be encoded as-is.
 
-Note that the Tunnel-Password attribute is not of data type 'text'.  The original reason in {{RFC2868}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the Tunnel-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044}} Section 3.4.
+Note that the Tunnel-Password attribute is not of data type 'text'.  The original reason in {{RFC2868}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the Tunnel-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044, Section 3.4}}.
 
 However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for Tunnel-Password.
 
 ### Vendor-Specific Attributes
 
-Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as per their base data type.  Specifically, the MS-MPPE-Send-Key and MS-MPPE-Recv-Key attributes ({{RFC2548}} Section 2.4) MUST be encoded as any other attribute of data type 'string' ({{RFC8044}} Section 3.4).
+Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as per their base data type.  Specifically, the MS-MPPE-Send-Key and MS-MPPE-Recv-Key attributes ({{RFC2548, Section 2.4}}) MUST be encoded as any other attribute of data type 'string' ({{RFC8044, Section 3.4}}).
 
 ## Message-Authenticator
 
-The Message-Authenticator attribute ({{RFC3579}} Section 3.2) MUST NOT be sent over a RADIUS/1.1 connection.  That attribute is not used or needed in RADIUS/1.1.
+The Message-Authenticator attribute ({{RFC3579, Section 3.2}}) MUST NOT be sent over a RADIUS/1.1 connection.  That attribute is not used or needed in RADIUS/1.1.
 
-If the Message-Authenticator attribute is received over a RADIUS/1.1 connection, the attribute MUST be silently discarded, or treated as an "invalid attribute", as defined in {{RFC6929}} Section 2.8.  That is, the Message-Authenticator attribute is no longer used to sign packets for the RADIUS/1.1 transport.  Its existence (or not) in this transport is meaningless.
+If the Message-Authenticator attribute is received over a RADIUS/1.1 connection, the attribute MUST be silently discarded, or treated as an "invalid attribute", as defined in {{RFC6929, Section 2.8}}.  That is, the Message-Authenticator attribute is no longer used to sign packets for the RADIUS/1.1 transport.  Its existence (or not) in this transport is meaningless.
 
 We note that any packet which contains a Message-Authenticator attribute can still be processed.  There is no need to discard an entire packet simply because it contains a Message-Authenticator attribute.  Only the Message-Authenticator attribute itself is ignored.
 
@@ -608,15 +608,15 @@ For proxies, the Message-Authenticator attribute was always defined as being cre
 
 A proxy may receive an Access-Request packet over a RADIUS/1.1 connection, and then forward that packet over a RADIUS/UDP or a RADIUS/TCP connection.  In that situation, the proxy SHOULD add a Message-Authenticator attribute to every Access-Request packet which is sent over an insecure transport protocol.
 
-The original text in {{RFC3579}} Section 3.3, "Note 1" paragraph required that the Message-Authenticator attribute be present for certain Access-Request packets.  It also required the use of Message-Authenticator when the Access-Request packet contained an EAP-Message attribute.  Experience has shown that some RADIUS clients never use the Message-Authenticator, even for the situations where its use is suggested.
+The original text in {{RFC3579, Section 3.3}}, "Note 1" paragraph required that the Message-Authenticator attribute be present for certain Access-Request packets.  It also required the use of Message-Authenticator when the Access-Request packet contained an EAP-Message attribute.  Experience has shown that some RADIUS clients never use the Message-Authenticator, even for the situations where its use is suggested.
 
 When the Message-Authenticator attribute is missing from Access-Request packets, it is often possible to trivially forge or replay those packets.  As such, this document RECOMMENDS that RADIUS clients always include Message-Authenticator in Access-Request packets when using UDP or TCP transport.  As the scope of this document is limited to defining RADIUS/1.1, we cannot mandate that behavior here.  Instead, we can note that there are no known negatives to this behavior, and there are definite positives, such as increased security.
 
 ## Message-Authentication-Code
 
-Similarly, the Message-Authentication-Code attribute defined in {{RFC6218}} Section 3.3 MUST NOT be sent over a RADIUS/1.1 connection.  That attribute MUST be treated the same as Message-Authenticator, above.
+Similarly, the Message-Authentication-Code attribute defined in {{RFC6218, Section 3.3}} MUST NOT be sent over a RADIUS/1.1 connection.  That attribute MUST be treated the same as Message-Authenticator, above.
 
-As the Message-Authentication-Code attribute is no longer used in RADIUS/1.1, the related MAC-Randomizer attribute {{RFC6218}} Section 3.2 is also no longer used.  It MUST also be treated the same way as Message-Authenticator, above.
+As the Message-Authentication-Code attribute is no longer used in RADIUS/1.1, the related MAC-Randomizer attribute {{RFC6218, Section 3.2}} is also no longer used.  It MUST also be treated the same way as Message-Authenticator, above.
 
 ## CHAP, MS-CHAP, etc.
 
@@ -626,7 +626,7 @@ A server implementing this specification can proxy CHAP, MS-CHAP, etc. without a
 
 ## Original-Packet-Code
 
-{{RFC7930}} Section 4 defines an Original-Packet-Code attribute.  This attribute is needed because otherwise it is impossible to correlate the Protocol-Error response packet with a particular request packet.  The definition in {{RFC7930}} Section 4 describes the reasoning behind this need:
+{{RFC7930, Section 4}} defines an Original-Packet-Code attribute.  This attribute is needed because otherwise it is impossible to correlate the Protocol-Error response packet with a particular request packet.  The definition in {{RFC7930, Section 4}} describes the reasoning behind this need:
 
 > The Original-Packet-Code contains the code
 > from the request that generated the protocol error so that clients
@@ -634,9 +634,9 @@ A server implementing this specification can proxy CHAP, MS-CHAP, etc. without a
 
 This attribute is no longer needed in RADIUS/1.1.  The Identifier field is unused, so it impossible for two requests to have the "same" ID.  Instead, the Token field permits clients and servers to correlate requests and responses, independent of the Code being used.
 
-Therefore, the Original-Packet-Code attribute ({{RFC7930}} Section 4) MUST NOT be sent over a RADIUS/1.1 connection.  That attribute is not used or needed over RADIUS/1.1 connections.
+Therefore, the Original-Packet-Code attribute ({{RFC7930, Section 4}}) MUST NOT be sent over a RADIUS/1.1 connection.  That attribute is not used or needed over RADIUS/1.1 connections.
 
-If the Original-Packet-Code attribute is received over a RADIUS/1.1 connection, the attribute MUST either be silently discarded, or be treated an as "invalid attribute", as defined in {{RFC6929}} Section 2.8.  That is, existence of the Token field means that the Original-Packet-Code attribute is not needed in RADIUS/1.1 to correlate Protocol-Error replies with outstanding requests.
+If the Original-Packet-Code attribute is received over a RADIUS/1.1 connection, the attribute MUST either be silently discarded, or be treated an as "invalid attribute", as defined in {{RFC6929, Section 2.8}}.  That is, existence of the Token field means that the Original-Packet-Code attribute is not needed in RADIUS/1.1 to correlate Protocol-Error replies with outstanding requests.
 
 We note that any packet which contains an Original-Packet-Code attribute can still be processed.  There is no need to discard an entire packet simply because it contains an Original-Packet-Code attribute.
 
@@ -646,7 +646,7 @@ Most of the differences between RADIUS and RADIUS/1.1 are in the packet header a
 
 ## Status-Server
 
-{{RFC6613}} Section 2.6.5, and by extension {{RFC7360}}, suggest that the Identifier value zero (0) be reserved for use with Status-Server as an application-layer watchdog.  This practice MUST NOT be used for RADIUS/1.1, as the Identifier field is not used in this transport profile.
+{{RFC6613, Section 2.6.5}}, and by extension {{RFC7360}}, suggest that the Identifier value zero (0) be reserved for use with Status-Server as an application-layer watchdog.  This practice MUST NOT be used for RADIUS/1.1, as the Identifier field is not used in this transport profile.
 
 The rationale for reserving one value of the Identifier field was the limited number of Identifiers available (256), and the overlap in Identifiers between Access-Request packets and Status-Server packets.  If all 256 Identifier values had been used to send Access-Request packets, then there would be no Identifier value available for sending a Status-Server packet.
 
@@ -660,7 +660,7 @@ A proxy may negotiate RADIUS/1.1 (or not) with a particular client or clients, a
 
 ## Crypto-Agility
 
-The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614}} Appendix C, and in Section 10.1 of {{RFC7360}}.  This specification makes no changes from, or additions to, those specifications.  The use of ALPN, and the removal of MD5 has no impact on security or privacy of the protocol.
+The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614, Appendix C}}, and in {{RFC7360, Section 10.1}}.  This specification makes no changes from, or additions to, those specifications.  The use of ALPN, and the removal of MD5 has no impact on security or privacy of the protocol.
 
 RADIUS/TLS has been widely deployed in at least eduroam {{RFC7593}} and {{EDUROAM}} and in OpenRoaming {{OPENROAMING}}.  RADIUS/DTLS has seen less adoption, but it is known to be supported in many RADIUS clients and servers.
 
@@ -670,9 +670,9 @@ All crypto-agility needed or used by this specification is implemented in TLS.  
 
 ## Error-Cause Attribute
 
-The Error-Cause attribute is defined in {{RFC5176}}. The "Table of Attributes" section given in {{RFC5176}} Section 3.6 permits that attribute to appear in CoA-NAK and Disconnect-NAK packets.  As no other packet type is listed, the implication is that the Error-Cause attribute cannot appear in any other packet.  {{RFC7930}} also permits Error-Cause to appear in Protocol-Error packets.
+The Error-Cause attribute is defined in {{RFC5176}}. The "Table of Attributes" section given in {{RFC5176, Section 3.6}} permits that attribute to appear in CoA-NAK and Disconnect-NAK packets.  As no other packet type is listed, the implication is that the Error-Cause attribute cannot appear in any other packet.  {{RFC7930}} also permits Error-Cause to appear in Protocol-Error packets.
 
-However, {{?RFC5080}} Section 2.6.1 suggests that Error-Cause may appear in Access-Reject packets.  No explanation is given for this change from {{RFC5176}}.  There is not even an acknowledgment that this suggestion is a change from any previous specification.  We correct that issue here.
+However, {{?RFC5080, Section 2.6.1}} suggests that Error-Cause may appear in Access-Reject packets.  No explanation is given for this change from {{RFC5176}}.  There is not even an acknowledgment that this suggestion is a change from any previous specification.  We correct that issue here.
 
 This specification updates {{RFC5176}} to allow the Error-Cause attribute to appear in Access-Reject packets.  It is RECOMMENDED that implementations include the Error-Cause attribute in Access-Reject packets where appropriate.
 
@@ -690,9 +690,9 @@ Future work may define new attributes, packet types, etc.  It is important to be
 
 We reiterate that this specification defines a new transport profile for RADIUS.  It does not define a completely new protocol.  Any future specification which defines a new attribute MUST define it for RADIUS/UDP first, after which those definitions can be applied to this transport profile.
 
-New specifications MAY define new attributes which use the obfuscation methods for User-Password as defined in {{RFC2865}} Section 5.2, or for Tunnel-Password as defined in {{RFC2868}} Section 3.5.  There is no need for those specifications to describe how those new attributes are transported in RADIUS/1.1.  Since RADIUS/1.1 does not use MD5, any obfuscated attributes will by definition be transported as their underlying data type, "text" ({{RFC8044}} Section 3.4) or "string" ({{RFC8044}} Section 3.5).
+New specifications MAY define new attributes which use the obfuscation methods for User-Password as defined in {{RFC2865, Section 5.2}}, or for Tunnel-Password as defined in {{RFC2868, Section 3.5}}.  There is no need for those specifications to describe how those new attributes are transported in RADIUS/1.1.  Since RADIUS/1.1 does not use MD5, any obfuscated attributes will by definition be transported as their underlying data type, "text" ({{RFC8044, Section 3.4}}) or "string" ({{RFC8044, Section 3.5}}).
 
-New RADIUS specifications MUST NOT define attributes which can only be transported via RADIUS over TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "invalid attributes" ({{RFC6929}} Section 2.8), and could forward them over an insecure link.  As RADIUS security and signaling is hop-by-hop, there is no way for a RADIUS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
+New RADIUS specifications MUST NOT define attributes which can only be transported via RADIUS over TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "invalid attributes" ({{RFC6929, Section 2.8}}), and could forward them over an insecure link.  As RADIUS security and signaling is hop-by-hop, there is no way for a RADIUS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
 
 The result is that specifications do not need to mention this transport profile, or make any special provisions for dealing with it.  This specification defines how RADIUS packet encoding, decoding, signing, and verification are performed when using RADIUS/1.1.  So long as any future specification uses the existing encoding, etc. schemes defined for RADIUS, no additional text in future documents is necessary in order to be compatible with RADIUS/1.1.
 
