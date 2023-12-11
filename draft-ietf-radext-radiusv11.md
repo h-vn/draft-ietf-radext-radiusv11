@@ -135,7 +135,7 @@ We reiterate that the decision to support (or not) any authentication method is 
 
 Unless otherwise described in this document, all RADIUS requirements apply to this extension.  That is, this specification defines a transport profile for RADIUS.  It is not an entirely new protocol, and it defines only minor changes to the existing RADIUS protocol.  It does not change the RADIUS packet format, attribute format, etc.  This specification is compatible with all RADIUS attributes, past, present, and future.
 
-This specification is compatible with existing implementations of RADIUS/TLS and RADIUS/DTLS.  Systems which implement this standard are mandated to fall back to historic RADIUS/TLS if no ALPN signaling is performed.
+This specification is compatible with existing implementations of RADIUS/TLS and RADIUS/DTLS.  Systems which implement this standard can fall back to historic RADIUS/TLS if no ALPN signaling is performed, and the local configuration permits such fallback.
 
 This specification is compatible with all past and future RADIUS specifications.  There is no need for any RADIUS specification to mention this transport profile by name, or to make provisions for this specification.  This document defines how to transform RADIUS into RADIUS/1.1, and no further discussion of that transformation is necessary.
 
@@ -213,7 +213,7 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description ALPN for readers who are not familiar with the details of {{RFC7301}}.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description of ALPN for readers who are not familiar with the details of {{RFC7301}}.
 
 1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
