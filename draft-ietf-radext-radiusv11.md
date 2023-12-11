@@ -314,9 +314,9 @@ Values
 >>
 >>> If the server receives no ALPN name from the client, it MUST use historic RADIUS/TLS.
 >>>
->>> If the server receives only one ALPN name which matches "radius/1.0" from the client, it MUST reply with ALPN "radius/1.0", and then use historic RADIUS/TLS.
+>>> If the server recieves one or more ALPN names from the client which include the ALPN name "radius/1.1", it MUST reply with ALPN "radius/1.1", and then use RADIUS/1.1.
 >>>
->>> If the server receives one or more ALPN names which include "radius/1.1" from the client, it MUST reply with ALPN "radius/1.1", and then use RADIUS/1.1
+>>> Else, if the server recieves one or more ALPN names from the client which include the ALPN name "radius/1.0" but not "radius/1.1", it MUST reply with ALPN "radius/1.0", and then use historic RADIUS/TLS.
 >>>
 >>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.0" or "radius/1.1", it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
 
