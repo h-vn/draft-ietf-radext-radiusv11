@@ -318,7 +318,7 @@ Values
 >>>
 >>> Else, if the server receives one or more ALPN names from the client which include the ALPN name "radius/1.0" but not "radius/1.1", it MUST reply with ALPN "radius/1.0", and then use historic RADIUS/TLS.
 >>>
->>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.0" or "radius/1.1", it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
+>>> If the server receives one or more ALPN names from the client, but none of the names match "radius/1.0" or "radius/1.1", it MUST reply with a TLS alert of "no_application_protocol" (120), and then MUST close the TLS connection.
 
 > "1.1" -  Require the use of RADIUS/1.1
 >
@@ -336,9 +336,9 @@ Values
 >>
 >> Server Behavior
 >>
->>> If the server receives no ALPN name from the client, it MAY reply with a TLS alert of "no_application_protocol" (120).  It MUST then close the TLS connection.
+>>> If the server receives no ALPN name from the client, it MAY reply with a TLS alert of "no_application_protocol" (120), and MUST close the TLS connection.
 >>>
->>> If the server receives an ALPN name "radius/1.0" from the client, it MUST reply with a TLS alert of "no_application_protocol" (120), and then close the TLS connection.
+>>> If the server receives an ALPN name "radius/1.0" from the client, it MUST reply with a TLS alert of "no_application_protocol" (120), and then MUST close the TLS connection.
 >>>
 >>>  Note that the server may receive multiple ALPN names from the client.  So long as the server receives an ALPN name "radius/1.1" from the client, it is deemed to match, and the connection MUST use RADIUS/1.1.
 >>>
