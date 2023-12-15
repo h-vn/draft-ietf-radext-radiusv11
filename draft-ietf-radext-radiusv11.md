@@ -213,7 +213,7 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here of ALPN in order to provide a high-level description of ALPN for readers who are not familiar with the details of {{RFC7301}}.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here, in order to provide a high-level description of ALPN for readers who are not familiar with the details of {{RFC7301}}.
 
 1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
 
