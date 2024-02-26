@@ -7,6 +7,8 @@ Its is fully compatible with normal RADIUS, and can transport all RADIUS attribu
 This document is for the IETF RADEXT WG
 http://datatracker.ietf.org/wg/radext
 
+The IETF datatracker page for this document is https://datatracker.ietf.org/doc/draft-dekok-radext-radiusv11/
+
 ## RADIUS and FIPS-140
 
 Historical RADIUS over UDP is not FIPS compatible.  This version can be used in a FIPS compatible environment.
