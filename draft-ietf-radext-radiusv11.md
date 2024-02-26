@@ -213,23 +213,25 @@ The next step in defining RADIUS/1.1 is to review how ALPN works.
 
 ## Operation of ALPN
 
-Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  We give a brief overview here, in order to provide a high-level description of ALPN for readers who are not familiar with the details of {{RFC7301}}.
+In order to provide a high-level description of ALPN for readers who are not familiar with the details of {{RFC7301}}, we provide a brief overview here.
 
-1) The client proposes ALPN by sending an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.
+Once a system has been configured to support ALPN, it is negotiated on a per-connection basis as per {{RFC7301}}.  The negotiation proceeds as follows:
 
-2) The server receives the extension, and validates the application protocol name against the list it has configured.
+1) The client sends an ALPN extension in the ClientHello.  This extension lists one or more application protocols by name.  These names are the protocols which the client is claiming to support.
+
+2) The server receives the extension, and validates the application protocol name(s) against the list it has configured.
 
 > If the server finds no acceptable common protocols (ALPN or otherwise), it closes the connection.
 
-3) Otherwise, the server returns a ServerHello with either no ALPN extension, or an ALPN extension with only one named application protocol.
+3) Otherwise, the server returns a ServerHello with either no ALPN extension, or an ALPN extension containing only one named application protocol, which needs to be one of the names proposed by the client.
 
 > If the client did not signal ALPN, or the server does not accept the ALPN proposal, the server does not reply with any ALPN name.
 
-4) The client receives the ServerHello, validates the received application protocol (if any) against the name it sent, and records the application protocol which was chosen.
+4) The client receives the ServerHello, validates the received application protocol (if any) against the name(s) it sent, and records which application protocol was chosen.
 
 > This check is necessary in order for the client to both know which protocol the server has selected, and to validate that the protocol sent by the server is one which is acceptable to the client.
 
-The next step in defining RADIUS/1.1 is to define how ALPN is configured on the client and server, and to give more detailed requirements on ALPN configuration and operation.
+The next step in defining RADIUS/1.1 is to define how ALPN is configured on the client and server, and to give more detailed requirements on its configuration and operation.
 
 ## Configuration of ALPN for RADIUS/1.1
 
@@ -242,9 +244,9 @@ When set, this flag contains the list of permitted ALPN versions in humanly read
 * containing values "1.0" and "1.1" - allow either historic RADIUS/TLS or RADIUS/1.1
 * containing value "1.1" - require RADIUS/1.1.
 
-This configuration is also extensible to future ALPN names if that extension becomes necessary.
+This configuration is also extensible to future ALPN names if that extension becomes necessary.  New versions can simply be added to the list.
 
-A more descriptive definition of the variable and the meaning of the values is given below.
+A more detailed definition of the variable and the meaning of the values is given below.
 
 Configuration Flag Name
 
@@ -256,7 +258,7 @@ Values
 >
 > Any connection MUST use historic RADIUS/TLS.
 >
-> This flag is included here only for logical completeness.  Instead, implementations of this specification SHOULD be configured to always use ALPN.
+> This flag is included here only for logical completeness.  Implementations of this specification SHOULD be configured to always use ALPN.
 >
 >> Client Behavior
 >>
@@ -268,7 +270,7 @@ Values
 >>>
 >>> If the server receives an ALPN name from the client, it MUST NOT close the connection.  Instead, it simply does not reply with ALPN, and finishes the TLS connection setup as defined for historic RADIUS/TLS.
 >>>
->>> Note that if the client sends "radius/1.1", the client will see that the server failed to acknowledge this request, and will close the connection.  For any other client configuration, the connection will use historic RADIUS/TLS.
+>>> Note that if a client sends "radius/1.1", the client will see that the server failed to acknowledge this request, and will close the connection.  For any other client configuration, the connection will use historic RADIUS/TLS.
 
 > "1.0" - send "radius/1.0", and use historic RADIUS/TLS.
 >
@@ -411,7 +413,7 @@ The table entries above have the following meaning:
 >
 >> The client does not send ALPN string(s), but the server requires ALPN.  The server closes the connection.
 >>
->> As noted in the previous section, the server MAY send a Protocol-Error packet to the client before closing the connection.
+>> As noted in the previous section, the server MAY send a Protocol-Error packet to the client before closing the connection.  The server MAY also send a TLS alert of "no_application_protocol" (120) before closing the connection.
 >
 > RadSec
 >
@@ -419,7 +421,7 @@ The table entries above have the following meaning:
 >
 > 1.0
 >
->> The client sends the ALPN string "radius/1.0".  The server responds with the ALPN string "radius/1.0", and then historic RADIUS/TLS is used
+>> The client sends the ALPN string "radius/1.0".  The server responds with the ALPN string "radius/1.0", and then historic RADIUS/TLS is used.
 > 
 > 1.1
 >
@@ -486,11 +488,11 @@ Code
 
 Reserved-1
 
-> The Reserved-1 field is one octet.  It MUST be set to zero for all packets.
+> The Reserved-1 field is one octet.
 >
 > This field was previously used as the "Identifier" in historic RADIUS/TLS.  It is now unused, as the Token field replaces it both as the way to identify requests, and to associate responses with requests.
 >
-> The Reserved-1 field MUST be ignored when receiving a packet.  When sending packets, the Reserved-1 field MUST be set to zero.
+> When sending packets, the Reserved-1 field MUST be set to zero.  The Reserved-1 field MUST be ignored when receiving a packet.
 
 Length
 
@@ -526,9 +528,15 @@ This section describes in more detail how the Token field is used.
 
 The Token field MUST change for every new unique packet which is sent on the same connection. For DTLS transport, it is possible to retransmit duplicate packets, in which case the Token value MUST NOT be changed when a duplicate packet is (re)sent.  When the contents of a retransmitted packet change for any reason (such changing Acct-Delay-Time as discussed in {{RFC2866, Section 5.2}}), the Token value MUST be changed.  Note that on reliable transports, packets are never retransmitted, and therefore every new packet which is sent has a unique Token value.
 
+We note that in previous RADIUS specifications, the Identifier field could have the same value for different types of packets on the same connection, e.g. for Access-Request and Accounting-Request.  This overlap required that RADIUS clients and servers track the Identifier field, not only on a per-connection basis, but also on a per-packet type basis.  This behavior adds complexity to implementations.
+
+In contrast, the Token field MUST be managed on a per-connection basis, and MUST NOT be managed for individual packet Codes.  That is, if a system sends multiple packet Codes over the same connection, the Token field MUST be managed independent of any packet Code.  For An implementation which sends both (for example) Access-Request and Accounting-Requests on the same connection is not compliant with this specification.
+
 Systems generating the Token can do so via any method they choose.  For simplicity, it is RECOMMENDED that the Token values be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized to a random value, taken from a random number generator, whenever a new connection is opened.  The counter can then be incremented for every new packet that the client sends.
 
-As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value.
+The purpose for initializing the Token to a random counter is to aid administrators in debugging systems.  If the Token values always used the same sequence, then it would be possible to confuse multiple packets having the same Token value.  By instead starting with a random value, those values are more evenly distributed across the set of allowed values, and are therefore more likely to be unique.
+
+As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value without taking any special action in that situation.
 
 Once a RADIUS response to a request has been received and there is no need to track the packet any longer, the Token value MAY be reused. This re-use SHOULD be after a suitable delay to ensure that Token values do not conflict with outstanding packets.  Note that the counter method described above for generating Token values will automatically ensure a long delay between multiple uses of the same Token value.  The only cost for tracking Tokens is a single 32-bit counter.  Any other method of generating unique and non-conflicting Token values is likely to require substantially more resources to track outstanding Token values and their associated expiry times.
 
@@ -538,11 +546,17 @@ If a RADIUS client has multiple independent subsystems which send packets to a s
 
 A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.
 
-We note that in previous RADIUS specifications, the Identifier field could have the same value for different types of packets on the same connection, e.g. for Access-Request and Accounting-Request.  This overlap required that RADIUS clients and servers track the Identifier field, not only on a per-connection basis, but also on a per-packet type basis.  This behavior adds complexity to implementations.
-
 When using RADIUS/1.1, implementations MUST instead do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  While the recommendation above is for the sender to use a counter, other implementations are possible, valid, and permitted.  For example, a system could use a pseudo-random number generator with a long period to generate unique values for the Token field.
 
-Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.
+Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.  Systems performing deduplication MAY still track the packet Code, Length, and Attributes which is associated with a Token value.  If it determines that the sender is re-using Token values for distinct outstanding packets, then an error should be logged, and the connection MUST be closed.
+
+Once a reply has been sent, a system doing deduplication SHOULD cache the replies as discussed in {{RFC5080, Section 2.2.2}}:
+
+> Each cache entry SHOULD be purged after a period of time.  This time
+> SHOULD be no less than 5 seconds, and no more than 30 seconds.  After
+> about 30 seconds, most RADIUS clients and end users will have given
+> up on the authentication request.  Therefore, there is little value
+> in having a larger cache timeout.
 
 This change from RADIUS means that the Identifier field is no longer useful for RADIUS/1.1.  The Reserved-1 field (previously used as the Identifier) MUST be set to zero for all RADIUS/1.1 packets.  RADIUS/1.1 Implementations MUST NOT examine this field or use it for packet tracking or deduplication.
 
