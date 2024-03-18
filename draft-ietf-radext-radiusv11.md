@@ -121,7 +121,7 @@ The following items are left unchanged from traditional TLS-based transports for
 
 * The default 4K packet size is unchanged, although {{RFC7930}} can still be leveraged to use larger packets,
 
-* All attributes which have simple encodings (i.e. without using MD5 obfuscation), all have the same encoding and meaning as before,
+* All attributes which have simple encodings (that is, attributes which do not use MD5 obfuscation) have the same encoding and meaning as before,
 
 * As this extension is a transport profile for one "hop" (client to server connection), it does not impact any other connection used by a client or server.  The only systems which are aware that this transport profile is in use are the client and server who have negotiated the use of this extension on a particular shared connection,
 
@@ -153,10 +153,6 @@ The following list describes the terminology and abbreviations which are used in
 
 > Application-Layer Protocol Negotiation, as defined in {{RFC7301}}.
 
-* historic RADIUS/TLS
-
-> RADIUS/TLS as defined in {{RFC6614}} and {{RFC7360}}.
-
 * RADIUS
 
 > The Remote Authentication Dial-In User Service protocol, as defined in {{RFC2865}}, {{RFC2866}}, and {{RFC5176}} among others.
@@ -181,7 +177,11 @@ The following list describes the terminology and abbreviations which are used in
 
 * RADIUS over TLS
 
-> Either RADIUS/TLS or RADIUS/DTLS.  This terminology is used instead of alternatives such as "RADIUS/(D)TLS", or "either RADIUS/TLS or RADIUS/DTLS".
+> Any RADIUS packets transported over TLS or DTLS.  This terminology is used instead of alternatives such as "RADIUS/(D)TLS", or "either RADIUS/TLS or RADIUS/DTLS".  This term is generally used when referring to TLS-layer requirements for RADIUS packet transport.
+
+* historic RADIUS/TLS
+
+> RADIUS over (D)TLS as defined in {{RFC6614}} and {{RFC7360}}.  This term does not include the protocol defined in this specfication.
 
 * RADIUS/1.1
 
@@ -350,7 +350,9 @@ By requiring the the default configuration to allow historic RADIUS/TLS, impleme
 
 Once administrators verify that both ends of a connection support RADIUS/1.1, and that it has been negotiated successfully, the configurations SHOULD be updated to require RADIUS/1.1.  The connections should be monitored after this change to ensure that the systems continue to remain connected.  If there are connection issues, then the configuration should be reverted to using allow both "radius/1.0" and "radius/1.1" ALPN strings, until such time as the connection problems have been resolved.
 
-We reiterate that systems implementing this specification, but which are configured with setting that forbid RADIUS/1.1, will behave exactly the same as systems which do not implement this specification.  Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
+We reiterate that systems implementing this specification, but which are configured with setting that forbid RADIUS/1.1, will behave largely the same as systems which do not implement this specification.  The only difference is that clients may send the ALPN name "radius/1.0".
+
+Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
 
 While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.
 
@@ -368,7 +370,9 @@ It is RECOMMENDED that the server logs a descriptive error in this situation, so
 
 ### Using Protocol-Error for Application Signaling
 
-When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet inside of the tunnel, and then close the connection.  If this is done, the Response Authenticator field of the Protocol-Error packet MUST be all zeros, as this packet is not in response to any request.  The Protocol-Error packet SHOULD contain a Reply-Message attribute with a textual string describing the cause of the error.  The packet SHOULD also contain an Error-Cause attribute, with value Unsupported Extension (406).
+When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet inside of the tunnel, and then close the connection.  If this is done, the Identifier and Token fields of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
+
+The Protocol-Error packet SHOULD contain a Reply-Message attribute with a textual string describing the cause of the error.  The packet SHOULD also contain an Error-Cause attribute, with value Unsupported Extension (406).  The packet SHOULD NOT contain other attributes.
 
 An implementation sending this packet could bypass any RADIUS encoder, and simply write this packet as a predefined, fixed set of data to the TLS connection.  That process would likely be simpler than trying to call the normal RADIUS packet encoder to encode a reply packet without a request packet, and then trying to force the Response Authenticator to be all zeros.
 
@@ -425,7 +429,7 @@ The table entries above have the following meaning:
 > 
 > 1.1
 >
->> The client sends the ALPN string "radius/1.1.  The server ACKs with "radius/1.1", and then RADIUS/1.1 is used.
+>> The client sends the ALPN string "radius/1.1.  The server acknowledges this negotiation with a reply of "radius/1.1", and then RADIUS/1.1 is used.
 
 Implementations should note that this table may be extended in future specifications.  The above text is informative, and does not mandate that only the above ALPN strings are used.  The actual ALPN negotiation takes place as defined in the preceding sections of this document, and in {{RFC7301}}.
 
@@ -544,11 +548,11 @@ If a RADIUS client has multiple independent subsystems which send packets to a s
 
 ### Receiving Packets  {#receiving-packets}
 
-A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.
+A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.  However, DTLS transport is UDP-based, and therefore still requires deduplication.
 
 When using RADIUS/1.1, implementations MUST instead do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  While the recommendation above is for the sender to use a counter, other implementations are possible, valid, and permitted.  For example, a system could use a pseudo-random number generator with a long period to generate unique values for the Token field.
 
-Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.  Systems performing deduplication MAY still track the packet Code, Length, and Attributes which is associated with a Token value.  If it determines that the sender is re-using Token values for distinct outstanding packets, then an error should be logged, and the connection MUST be closed.
+Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.  Systems performing deduplication MAY still track the packet Code, Length, and Attributes which is associated with a Token value.  If it determines that the sender is re-using Token values for distinct outstanding packets, then an error should be logged, and the connection MUST be closed.  There is no way to negotiate correct behavior in the protocol.  Either the parties both operate normally and can communicate, or one end misbehaves, and no communication is possible.
 
 Once a reply has been sent, a system doing deduplication SHOULD cache the replies as discussed in {{RFC5080, Section 2.2.2}}:
 
@@ -678,7 +682,7 @@ The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614, Appen
 
 RADIUS/TLS has been widely deployed in at least eduroam {{RFC7593}} and {{EDUROAM}} and in OpenRoaming {{OPENROAMING}}.  RADIUS/DTLS has seen less adoption, but it is known to be supported in many RADIUS clients and servers.
 
-It is RECOMMENDED that all implementations of RADIUS over TLS be updated to support this specification.  The effort to implement this specification is minimal, and once implementations support it, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to down-bidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
+It is RECOMMENDED that all implementations of historic RADIUS/TLS be updated to support this specification.  The effort to implement this specification is minimal, and once implementations support it, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to down-bidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
 
 All crypto-agility needed or used by this specification is implemented in TLS.  This specification also removes all cryptographic primitives from the application-layer protocol (RADIUS) being transported by TLS.  As discussed in the following section, this specification also bans the development of all new cryptographic or crypto-agility methods in the RADIUS protocol.
 
@@ -744,7 +748,7 @@ Reference:  This document
 
 # Acknowledgments
 
-In hindsight, the decision to retain MD5 for RADIUS over TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
+In hindsight, the decision to retain MD5 for historic RADIUS/TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
 
 Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, Alexander Clouter, Michael Richardson, Hannes Tschofenig, Matthew Newton, and Josh Howlett for reviews and feedback.
 
