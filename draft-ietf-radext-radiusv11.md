@@ -1,7 +1,7 @@
 ---
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-04
+docname: draft-ietf-radext-radiusv11-05
 updates: 5176, 6614, 7360
 
 stand_alone: true
@@ -370,7 +370,7 @@ It is RECOMMENDED that the server logs a descriptive error in this situation, so
 
 ### Using Protocol-Error for Application Signaling
 
-When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet inside of the tunnel, and then close the connection.  If this is done, the Identifier and Token fields of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
+When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet inside of the tunnel, and then close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
 
 The Protocol-Error packet SHOULD contain a Reply-Message attribute with a textual string describing the cause of the error.  The packet SHOULD also contain an Error-Cause attribute, with value Unsupported Extension (406).  The packet SHOULD NOT contain other attributes.
 
