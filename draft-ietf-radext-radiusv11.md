@@ -37,6 +37,7 @@ informative:
   RFC2548:
   RFC2866:
   RFC2868:
+  RFC3539:
   RFC3579:
   RFC5176:
   RFC6151:
@@ -368,9 +369,9 @@ In contrast, there is no need for the client to signal that there are no compati
 
 It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" it SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
-### Using Protocol-Error for Application Signaling
+### Using Protocol-Error for Signalling ALPN Failure
 
-When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet inside of the tunnel, and then close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
+When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet {{RFC7930}} inside of the tunnel, and then close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
 
 The Protocol-Error packet SHOULD contain a Reply-Message attribute with a textual string describing the cause of the error.  The packet SHOULD also contain an Error-Cause attribute, with value Unsupported Extension (406).  The packet SHOULD NOT contain other attributes.
 
@@ -546,11 +547,13 @@ Once a RADIUS response to a request has been received and there is no need to tr
 
 If a RADIUS client has multiple independent subsystems which send packets to a server, each subsystem MAY open a new connection which is unique to that subsystem.  There is no requirement that all packets go over one particular connection.  That is, despite the use of a 32-bit Token field, RADIUS/1.1 clients are still permitted to open multiple source ports as discussed in {{RFC2865}} Section 2.5.
 
+While multiple connections from client to server are allowed, We reiterate the suggestion of {{RFC3539, Section 3.3}} that a single connection is preferred to multiple connections.  The use of a single connection can improve throughput and latency, while simplifying the clients efforts to determine server status.
+
 ### Receiving Packets  {#receiving-packets}
 
 A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.  However, DTLS transport is UDP-based, and therefore still requires deduplication.
 
-When using RADIUS/1.1, implementations MUST instead do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  This requirement makes the receiver behaivior independent of the methods by which the Counter is generated.
+When using RADIUS/1.1, implementations MUST do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  This requirement makes the receiver behaivior independent of the methods by which the Counter is generated.
 
 Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.  Systems performing deduplication MAY still track the packet Code, Length, and Attributes which is associated with a Token value.  If it determines that the sender is re-using Token values for distinct outstanding packets, then an error should be logged, and the connection MUST be closed.  There is no way to negotiate correct behavior in the protocol.  Either the parties both operate normally and can communicate, or one end misbehaves, and no communication is possible.
 
@@ -661,6 +664,26 @@ We note that any packet which contains an Original-Packet-Code attribute can sti
 # Other Considerations
 
 Most of the differences between RADIUS and RADIUS/1.1 are in the packet header and attribute handling, as discussed above.  The remaining issues are a small set of unrelated topics, and are discussed here.
+
+## Protocol-Error
+
+There are a number of situations where a RADIUS server is unable to respond to a request.  One situation is where the server depends on a database, and the database is down.  While arguably the server should close all incoming connections when it is unable to do anything, this action is not always effective.  A client may aggressively try to open new connections, or send packets to an unconnected UDP destination where the server is not listening.  Another situatiuon where the server is unable to respond is when the server is proxying packets, and the outbound connections are either full or failed.
+
+In legacy RADIUS for Access-Request and Accounting-Request packets, there is no way for the server to send a client the positive signal that it received the packet, but is unable to reply.  Instead, the server usually just discards the request, which to the client is indistinguishable from the situation where the server is down.  This failure case is made worse by the fact that perhaps some proxied packets succeed while others fail.  The client can only conclude then that the server is randomly dropping packets, and is unreliable.
+
+It would be very useful for servers to signal to clients that they have received a request, and are unable to process it.  This specification uses the Protocol-Error packet {{RFC7930, Section 4}} as that signal.
+
+When a RADIUS/1.1 server determines that it is unable to process an Access-Request or Accounting-Request packet, it MUST respond with a Protocol-Error packet containing an Error-Cause attribute.  A proxy which cannot forward the packet MUST respond with either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  This requirement is to help distinguish failures in the proxy chain from failures at the home server,
+
+For a home server, if none of the Error-Cause values match the reason for the failure, then the value 506 (Resources Unavailable) MUST be used.
+
+A client receiving this Protocol-Error response MUST examine the Error-Cause attribute to determine how to process the reply.  If the value is either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error), the client MUST process this particular packet through the client forwarding algorithm.  The expected result of this process is that the client forwards the packet to a different server.  Care SHOULD be taken to not forward the packet over the same connection, or even to the same server.
+
+This process may continue over multiple connections and multiple servers, until the client either times out the request, or fails to find a forwarding destination for the packet.  A proxy then replies with a Protocol-Error packet as defined above.  A client which originates packets instead treats the request as if it received no response.
+
+Note that in a multi-hop proxy chain, proxies perform re-forwarding of packets only when the Error-Cause values are either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  For all other values of Error-Cause, the proxy MUST instead return the Protocol-Error response packet to the client, and include the Error-Cause attribute from the response it received.
+
+This behavior is intended to improve the stability of the RADIUS protocol by addressing issues first raised in {{RFC3539, Section 2.8}}.
 
 ## Status-Server
 
@@ -857,5 +880,9 @@ draft-ietf-radext-radiusv11-03
 draft-ietf-radext-radiusv11-04
 
 > Address github issues 3..9
+
+draft-ietf-radext-radiusv11-05
+
+> Add discussion of Protocol-Error as per-link signalling.
 
 --- back
