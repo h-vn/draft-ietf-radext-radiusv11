@@ -182,7 +182,7 @@ The following list describes the terminology and abbreviations which are used in
 
 * historic RADIUS/TLS
 
-> RADIUS over (D)TLS as defined in {{RFC6614}} and {{RFC7360}}.  This term does not include the protocol defined in this specfication.
+> RADIUS over (D)TLS as defined in {{RFC6614}} and {{RFC7360}}.  This term does not include the protocol defined in this specification.
 
 * RADIUS/1.1
 
@@ -369,7 +369,7 @@ In contrast, there is no need for the client to signal that there are no compati
 
 It is RECOMMENDED that the server logs a descriptive error in this situation, so that an administrator can determine why a particular connection failed.  The log message SHOULD include information about the other end of the connection, such as IP address, certificate information, etc.  Similarly, when the client receives a TLS alert of "no_application_protocol" it SHOULD log a descriptive error message.  Such error messages are critical for helping administrators to diagnose connectivity issues.
 
-### Using Protocol-Error for Signalling ALPN Failure
+### Using Protocol-Error for Signaling ALPN Failure
 
 When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet {{RFC7930}} inside of the tunnel, and then close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
 
@@ -553,7 +553,7 @@ While multiple connections from client to server are allowed, We reiterate the s
 
 A server which receives RADIUS/1.1 packets MUST perform packet deduplication for all situations where it is required by RADIUS.  Where RADIUS does not require deduplication (e.g. TLS transport), the server SHOULD NOT do deduplication.  However, DTLS transport is UDP-based, and therefore still requires deduplication.
 
-When using RADIUS/1.1, implementations MUST do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  This requirement makes the receiver behaivior independent of the methods by which the Counter is generated.
+When using RADIUS/1.1, implementations MUST do deduplication only on the Token field, and not on any other field or fields in the packet header. A server MUST treat the Token as being an opaque field with no intrinsic meaning.  This requirement makes the receiver behavior independent of the methods by which the Counter is generated.
 
 Where Token deduplication is done, it MUST be done on a per-connection basis.  If two packets which are received on different connections contain the same Token value, then those packets MUST be treated as distinct (i.e. different) packets.  Systems performing deduplication MAY still track the packet Code, Length, and Attributes which is associated with a Token value.  If it determines that the sender is re-using Token values for distinct outstanding packets, then an error should be logged, and the connection MUST be closed.  There is no way to negotiate correct behavior in the protocol.  Either the parties both operate normally and can communicate, or one end misbehaves, and no communication is possible.
 
@@ -667,7 +667,7 @@ Most of the differences between RADIUS and RADIUS/1.1 are in the packet header a
 
 ## Protocol-Error
 
-There are a number of situations where a RADIUS server is unable to respond to a request.  One situation is where the server depends on a database, and the database is down.  While arguably the server should close all incoming connections when it is unable to do anything, this action is not always effective.  A client may aggressively try to open new connections, or send packets to an unconnected UDP destination where the server is not listening.  Another situatiuon where the server is unable to respond is when the server is proxying packets, and the outbound connections are either full or failed.
+There are a number of situations where a RADIUS server is unable to respond to a request.  One situation is where the server depends on a database, and the database is down.  While arguably the server should close all incoming connections when it is unable to do anything, this action is not always effective.  A client may aggressively try to open new connections, or send packets to an unconnected UDP destination where the server is not listening.  Another situation where the server is unable to respond is when the server is proxying packets, and the outbound connections are either full or failed.
 
 In legacy RADIUS for Access-Request and Accounting-Request packets, there is no way for the server to send a client the positive signal that it received the packet, but is unable to reply.  Instead, the server usually just discards the request, which to the client is indistinguishable from the situation where the server is down.  This failure case is made worse by the fact that perhaps some proxied packets succeed while others fail.  The client can only conclude then that the server is randomly dropping packets, and is unreliable.
 
