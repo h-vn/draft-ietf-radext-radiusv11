@@ -609,17 +609,19 @@ There are a number of situations where a RADIUS server is unable to respond to a
 
 In historic RADIUS for Access-Request and Accounting-Request packets, there is no way for the server to send a client the positive signal that it received the packet, but is unable to reply.  Instead, the server usually just discards the request, which to the client is indistinguishable from the situation where the server is down.  This failure case is made worse by the fact that perhaps some proxied packets succeed while others fail.  The client can only conclude then that the server is randomly dropping packets, and is unreliable.
 
-It would be very useful for servers to signal to clients that they have received a request, and are unable to process it.  This specification uses the Protocol-Error packet {{RFC7930, Section 4}} as that signal.
+It would be very useful for servers to signal to clients that they have received a request, but are unable to process it.  This specification uses the Protocol-Error packet {{RFC7930, Section 4}} as that signal.  The use of Protocol-Error allows for both hop-by-hop signaling in the case of proxy forwarding errors, and also for end-to-end signaling of server to client.  Such signaling should greatly improve the robustness of the RADIUS protocol.
 
 When a RADIUS/1.1 server determines that it is unable to process an Access-Request or Accounting-Request packet, it MUST respond with a Protocol-Error packet containing an Error-Cause attribute.  A proxy which cannot forward the packet MUST respond with either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  This requirement is to help distinguish failures in the proxy chain from failures at the home server,
 
 For a home server, if none of the Error-Cause values match the reason for the failure, then the value 506 (Resources Unavailable) MUST be used.
 
-A client receiving this Protocol-Error response MUST examine the Error-Cause attribute to determine how to process the reply.  If the value is either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error), the client MUST process this particular packet through the client forwarding algorithm.  The expected result of this process is that the client forwards the packet to a different server.  Care SHOULD be taken to not forward the packet over the same connection, or even to the same server.
+When a RADIUS proxy receives a Protocol-Error reply, it MUST examine the value of the Error-Cause attribute.  If there is no Error-Cause attribute, or its value is something other than 502 (Request Not Routable (Proxy)), 505 (Other Proxy Processing Error), or 506 (Resources Unavailable), the proxy MUST return the Protocol-Error response packet to the client, and include the Error-Cause attribute from the response it received.  This process allows for full "end to end" signaling of servers to clients.
 
-This process may continue over multiple connections and multiple servers, until the client either times out the request, or fails to find a forwarding destination for the packet.  A proxy then replies with a Protocol-Error packet as defined above.  A client which originates packets instead treats the request as if it received no response.
+In all situtations other then outlined in the preceding paragraph, and client which receives a Protocol-Error reply MUST re-process the original outgoing packet through the client forwarding algorithm.  This requirmernt includes both clients which originate RADIUS traffic, and proxies which see an Error-Cause attribute of 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).
 
-Note that in a multi-hop proxy chain, proxies perform re-forwarding of packets only when the Error-Cause values are either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  For all other values of Error-Cause, the proxy MUST instead return the Protocol-Error response packet to the client, and include the Error-Cause attribute from the response it received.
+The expected result of this proessing is that the client forwards the packet to a different server.  Clients MUST NOT forward the packet over the same connection, and SHOULD NOT forward it to over a different connection to the same server.
+
+This process may continue over multiple connections and multiple servers, until the client either times out the request, or fails to find a forwarding destination for the packet.  A proxy which is unable to forward a packet MUST reply with a Protocol-Error packet containing Error-Cause, as defined above.  A client which originates packets MUST treat such a request as if it had received no response.
 
 This behavior is intended to improve the stability of the RADIUS protocol by addressing issues first raised in {{RFC3539, Section 2.8}}.
 
@@ -822,5 +824,11 @@ draft-ietf-radext-radiusv11-04
 draft-ietf-radext-radiusv11-05
 
 > Add discussion of Protocol-Error as per-link signalling.
+
+draft-ietf-radext-radiusv11-06
+
+> Review from Paul Wouters
+>
+> Clarify client handling of Protocol-Error
 
 --- back
