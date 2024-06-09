@@ -1,7 +1,7 @@
 ---
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-05
+docname: draft-ietf-radext-radiusv11-06
 updates: 5176, 6614, 7360
 
 stand_alone: true
