@@ -114,7 +114,7 @@ The detailed list of changes from historic TLS-based transports to RADIUS/1.1 is
 
 * Attributes such as User-Password, Tunnel-Password, and MS-MPPE keys are sent encoded as "text" ({{RFC8044, Section 3.4}}) or "octets" ({{RFC8044, Section 3.5}}), without the previous MD5-based obfuscation.  This obfuscation is no longer necessary, as the data is secured and kept private through the use of TLS,
 
-* The conclusion of the efforts stemming from {{RFC6421}} is that crypto-agility in RADIUS is best done via a TLS wrapper, and not by extending the RADIUS protcol.
+* The conclusion of the efforts stemming from {{RFC6421}} is that crypto-agility in RADIUS is best done via a TLS wrapper, and not by extending the RADIUS protocol.
 
 * {{RFC5176}} is updated to allow the Error-Cause attribute to appear in Access-Reject packets.
 
@@ -208,7 +208,7 @@ The ALPN name defined for RADIUS/1.1 is as follows:
 
 Where ALPN is not configured or is not received in a TLS connection, systems supporting ALPN MUST NOT use RADIUS/1.1.
 
-Where ALPN is configured, the client signals support by sending ALPN strings signaling which protocls it supports..  The server can accept one of these proposals and reply with a matching ALPN string, or reject this proposal, and not reply with any ALPN string.  A full walk-through of the protocol negotiation is given below.
+Where ALPN is configured, the client signals support by sending ALPN strings signaling which protocols it supports..  The server can accept one of these proposals and reply with a matching ALPN string, or reject this proposal, and not reply with any ALPN string.  A full walk-through of the protocol negotiation is given below.
 
 Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which causes a connection to use "radius/1.1", but which does not signal that protocol via ALPN.
 
@@ -483,7 +483,7 @@ In contrast, the Token values MUST be generated from a 32-bit counter which is u
 
 This counter method ensures that the Tokens are unique, and are also independent of any Code value in the RADIUS packet header.  This method is mandated because any other method of generating unique and non-conflicting Token values is more complex, with no additional benefit and only the likelihood of increased bugs and interoperability issues.  Any other method for generating Token values would require substantially more resources to track outstanding Token values and their associated expiry times.
 
-The purpose for initializing the Token to a random counter is to aid administrators in debugging systems.  If the Token values always used the same sequence, then it would easer for a person to confuse different packets which have the same Token value.  By instead starting with a random value, those values are more evenly distributed across the set of allowed values, and are therefore more likely to be unique.
+The purpose for initializing the Token to a random counter is to aid administrators in debugging systems.  If the Token values always used the same sequence, then it would easier for a person to confuse different packets which have the same Token value.  By instead starting with a random value, those values are more evenly distributed across the set of allowed values, and are therefore more likely to be unique.
 
 As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value without taking any special action in that situation.
 
@@ -565,7 +565,7 @@ The Message-Authenticator attribute ({{RFC3579, Section 3.2}}) MUST NOT be sent 
 
 If the Message-Authenticator attribute is received over a RADIUS/1.1 connection, the attribute MUST be silently discarded, or treated as an "invalid attribute", as defined in {{RFC6929, Section 2.8}}.  That is, the Message-Authenticator attribute is no longer used to sign packets for the RADIUS/1.1 transport.  Its existence (or not) in this transport is meaningless.
 
-A system which recieves a Message-Authenticator attribute in a packet MUST treat it as an "invalid attribute" as defined in {{RFC6929, Section 2.8}}.  That is, the packet can still be processed, even if the Message-Authenticator attribute is ignored.
+A system which receives a Message-Authenticator attribute in a packet MUST treat it as an "invalid attribute" as defined in {{RFC6929, Section 2.8}}.  That is, the packet can still be processed, even if the Message-Authenticator attribute is ignored.
 
 For proxies, the Message-Authenticator attribute has always been defined as being created and consumed on a "hop by hop" basis.  That is, a proxy which received a Message-Authenticator attribute from a client would never forward that attribute as-is to another server.  Instead, the proxy would either suppress, or re-create, the Message-Authenticator attribute in the outgoing request.  This existing behavior is leveraged in RADIUS/1.1 to suppress the use of Message-Authenticator over a RADIUS/1.1 connection.
 
@@ -617,9 +617,9 @@ For a home server, if none of the Error-Cause values match the reason for the fa
 
 When a RADIUS proxy receives a Protocol-Error reply, it MUST examine the value of the Error-Cause attribute.  If there is no Error-Cause attribute, or its value is something other than 502 (Request Not Routable (Proxy)), 505 (Other Proxy Processing Error), or 506 (Resources Unavailable), the proxy MUST return the Protocol-Error response packet to the client, and include the Error-Cause attribute from the response it received.  This process allows for full "end to end" signaling of servers to clients.
 
-In all situtations other then outlined in the preceding paragraph, and client which receives a Protocol-Error reply MUST re-process the original outgoing packet through the client forwarding algorithm.  This requirmernt includes both clients which originate RADIUS traffic, and proxies which see an Error-Cause attribute of 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).
+In all situations other then outlined in the preceding paragraph, and client which receives a Protocol-Error reply MUST re-process the original outgoing packet through the client forwarding algorithm.  This requirement includes both clients which originate RADIUS traffic, and proxies which see an Error-Cause attribute of 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).
 
-The expected result of this proessing is that the client forwards the packet to a different server.  Clients MUST NOT forward the packet over the same connection, and SHOULD NOT forward it to over a different connection to the same server.
+The expected result of this processing is that the client forwards the packet to a different server.  Clients MUST NOT forward the packet over the same connection, and SHOULD NOT forward it to over a different connection to the same server.
 
 This process may continue over multiple connections and multiple servers, until the client either times out the request, or fails to find a forwarding destination for the packet.  A proxy which is unable to forward a packet MUST reply with a Protocol-Error packet containing Error-Cause, as defined above.  A client which originates packets MUST treat such a request as if it had received no response.
 
@@ -645,7 +645,7 @@ The crypto-agility requirements of {{RFC6421}} are addressed in {{RFC6614, Appen
 
 RADIUS/TLS has been widely deployed in at least eduroam {{RFC7593}} and {{EDUROAM}} and in OpenRoaming {{OPENROAMING}}.  RADIUS/DTLS has seen less adoption, but it is known to be supported in many RADIUS clients and servers.
 
-It is RECOMMENDED that all implementations of historic RADIUS/TLS be updated to support this specification.  Where a system already implements RADIUS over TKS, the additional effort to implement this specification is minimal.  Once implementations support it, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to down-bidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
+It is RECOMMENDED that all implementations of historic RADIUS/TLS be updated to support this specification.  Where a system already implements RADIUS over TLS, the additional effort to implement this specification is minimal.  Once implementations support it, administrators can gain the benefit of it with little or no configuration changes.  This specification is backwards compatible with {{RFC6614}} and {{RFC7360}}.  It is only potentially subject to down-bidding attacks if implementations do not enforce ALPN negotiation correctly on session resumption.
 
 All crypto-agility needed or used by this specification is implemented in TLS.  This specification also removes all cryptographic primitives from the application-layer protocol (RADIUS) being transported by TLS.  As discussed in the following section, this specification also bans the development of all new cryptographic or crypto-agility methods in the RADIUS protocol.
 
