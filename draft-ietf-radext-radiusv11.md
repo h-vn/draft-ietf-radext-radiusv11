@@ -1,7 +1,7 @@
 ---
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-06
+docname: draft-ietf-radext-radiusv11-07
 updates: 5176, 6614, 7360
 
 stand_alone: true
@@ -244,10 +244,14 @@ When set, this flag contains the list of permitted ALPN versions in humanly read
 
 * unset,
 * "1.0" - require historic RADIUS/TLS
-* "1.0. 1.1" - allow either historic RADIUS/TLS or RADIUS/1.1.  This MUST be the default value for both clients and servers.
+* "1.0. 1.1" - allow either historic RADIUS/TLS or RADIUS/1.1.
 * "1.1" - require RADIUS/1.1.
 
 This configuration is also extensible to future ALPN names if that extension becomes necessary.  New versions can simply be added to the list.  Implementations can then negotiate the highest version which is supported by both client and server.
+
+Implementations SHOULD support both historic RADIUS/TLS and RADIUS/1.1.  Such implementations MUST set the default value for this configuratiun flag to "1.0, 1.1".  This setting ensures that both versions of RADIUS can be negotiated.
+
+Implementations MAY support only RADIUS/1.1.  In which case the default value for this configuration flag MUST be "1.1".  This behavior is NOT RECOMMENDED, as it is incompatible with historic RADIUS/TLS.  This behavior can only be a reasonable default when all (or nearly all) RADIUS clients have been updated to support RADIUS/1.1.
 
 A more detailed definition of the variable and the meaning of the values is given below.
 
@@ -279,7 +283,7 @@ Values
 >
 >> Client Behavior
 >>
->>> The client MUST send the configured ALPN string(s).
+>>> The client MUST send the ALPN string(s) associated with the configured version.  e.g. For "1.0", send "radius/1.0".
 >>>
 >>> The client will receive either no ALPN response from the server, or an ALPN response of one version string with MUST match one of the strings it sent, or else a TLS alert of "no_application_protocol" (120).
 >>>
@@ -289,7 +293,7 @@ Values
 >>
 >>> If the server receives no ALPN name from the client, it MUST use historic RADIUS/TLS.
 >>>
->>> If the server receives one or more ALPN names from the client, it MUST reply with the latest mutually supported version and then use the latest supported version for this connection.
+>>> If the server receives one or more ALPN names from the client, it MUST reply with the highest mutually supported version and then use the latest supported version for this connection.
 >>>
 >>> If the server receives one or more ALPN names from the client, but none of the names match the versions supported by (or configured on) the server, it MUST reply with a TLS alert of "no_application_protocol" (120), and then MUST close the TLS connection.
 >>>
@@ -319,13 +323,13 @@ It is RECOMMENDED that the server logs a descriptive error in this situation, so
 
 ### Using Protocol-Error for Signaling ALPN Failure
 
-When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet {{RFC7930}} inside of the tunnel, and then MUST close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore those fields MUST be set to all zeros.
+When it is not possible to send a TLS alert of "no_application_protocol" (120), then the only remaining method for one party to signal the other is to send application data inside of the TLS tunnel.  Therefore, for the situation when a one end of a connection determines that it requires ALPN while the other end does not support ALPN, the end requiring ALPN MAY send a Protocol-Error packet {{RFC7930}} inside of the tunnel, and then MUST close the connection.  If this is done, the Token field of the Protocol-Error packet cannot be copied from any request, and therefore that field MUST be set to all zeros.
 
 The Protocol-Error packet SHOULD contain a Reply-Message attribute with a textual string describing the cause of the error.  The packet SHOULD also contain an Error-Cause attribute, with value Unsupported Extension (406).  The packet SHOULD NOT contain other attributes.
 
-An implementation sending this packet could bypass any RADIUS encoder, and simply write this packet as a predefined, fixed set of data to the TLS connection.  That process would likely be simpler than trying to call the normal RADIUS packet encoder to encode a reply packet without a request packet, and then trying to force the Response Authenticator to be all zeros.
+An implementation sending this packet could bypass any RADIUS encoder, and simply write this packet as a predefined, fixed set of data to the TLS connection.  That process would likely be simpler than trying to call the normal RADIUS packet encoder to encode a reply packet with no corresponding request packet.
 
-As this packet is an unexpected response packet, existing client implementations will ignore it.  They may either log an error and close the connection, or they may discard the packet and leave the connection open.  If the connection remains open, the end supporting ALPN will close the connection, so there will be no side effects from sending the packet.  Therefore, while using a Protocol-Error packet in this way is unusual, it is both informative and safe.
+As this packet is an unexpected response packet, existing client implementations of RADIUS over TLS will ignore it.  They may either log an error and close the connection, or they may discard the packet and leave the connection open.  If the connection remains open, the end supporting ALPN will close the connection, so there will be no side effects from sending this packet.  Therefore, while using a Protocol-Error packet in this way is unusual, it is both informative and safe.
 
 The purpose of this packet is not to have the other end of the connection automatically determine what went wrong, and fix it.  Instead, the packet is intended to be (eventually) seen by an administrator, who can then take remedial action.
 
@@ -487,7 +491,7 @@ The purpose for initializing the Token to a random counter is to aid administrat
 
 As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value without taking any special action in that situation.
 
-Once a RADIUS response to a request has been received and there is no need to track the packet any longer, the Token value is reused only then the counter "wraps around" after 2^32 packets have been sent over one connection.  This use of a counter will automatically ensure a long delay (i.e. 2^32 packets) between multiple uses of the same Token value.   This large number of packets ensures that the only possible situation where there may be conflict is when a client sends billions of packets a second across one connection, or when a client sends billions of packets without receiving replies.  We suggest that such situations are vanishingly rare.  The best solution to those situations by limiting the number out outstanding packets over one connection to a number much lower than billions.
+Once a RADIUS response to a request has been received and there is no need to track the packet any longer, the Token value can be reused.  This reuse happens only when the counter "wraps around" after 2^32 packets have been sent over one connection.  This method of managing the counter automatically ensures a long delay (i.e. 2^32 packets) between multiple uses of the same Token value.   This large number of packets ensures that the only possible situation where there may be conflict is when a client sends billions of packets a second across one connection, or when a client sends billions of packets without receiving replies.  We suggest that such situations are vanishingly rare.  The best solution to those situations would be to limit the number out outstanding packets over one connection to a number much lower than billions.
 
 If a RADIUS client has multiple independent subsystems which send packets to a server, each subsystem MAY open a new connection which is unique to that subsystem.  There is no requirement that all packets go over one particular connection.  That is, despite the use of a 32-bit Token field, RADIUS/1.1 clients are still permitted to open multiple source ports as discussed in {{RFC2865}} Section 2.5.
 
@@ -517,9 +521,7 @@ Most attributes in RADIUS have no special encoding "on the wire", or any special
 
 ## Obfuscated Attributes
 
-As RADIUS over TLS is used for this specification, there is no need to hide the contents of an attribute on a hop-by-hop basis.  The TLS transport ensures that all attribute contents are hidden from any observer.
-
-Attributes defined as being obfuscated via MD5 no longer have the obfuscation step applied when RADIUS/1.1 is used.  Instead, those attributes are simply encoded as their values, as with any other attribute.  Their encoding method MUST follow the encoding for the underlying data type, with any encryption / obfuscation step omitted.
+Since the (D)TLS layer provides for connection authentication, integrity checks, and confidentiality, there is no need to hide the contents of an attribute on a hop-by-hop basis.  As a result, all attributes defined as being obfuscated via the shared secret no longer have the obfuscation step applied when RADIUS/1.1 is used.  Instead, those attributes MUST be encoded using the encoding for the underlying data type, with any encryption / obfuscation step omitted.  For example, the User-Password attribute is no longer obfuscated, and is instead sent as data type "text".
 
 There are risks from sending passwords over the network, even when they are protected by TLS.  One such risk comes from the common practice of multi-hop RADIUS routing.  As all security in RADIUS is on a hop-by-hop basis, every proxy which receives a RADIUS packet can see (and modify) all of the information in the packet.  Sites wishing to avoid proxies SHOULD use dynamic peer discovery {{RFC7585}}, which permits clients to make connections directly to authoritative servers for a realm.
 
@@ -533,7 +535,7 @@ We note that as the RADIUS shared secret is no longer used in this specification
 
 The User-Password attribute ({{RFC2865, Section 5.2}}) MUST be encoded the same as any other attribute of data type 'string' ({{RFC8044, Section 3.5}}).
 
-The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865, Section 5.2}} for compatibility with legacy transports.
+The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865, Section 5.2}} for compatibility with historic transports.
 
 Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044, Section 3.4}}.
 
@@ -607,7 +609,7 @@ Most of the differences between RADIUS and RADIUS/1.1 are in the packet header a
 
 There are a number of situations where a RADIUS server is unable to respond to a request.  One situation is where the server depends on a database, and the database is down.  While arguably the server should close all incoming connections when it is unable to do anything, this action is not always effective.  A client may aggressively try to open new connections, or send packets to an unconnected UDP destination where the server is not listening.  Another situation where the server is unable to respond is when the server is proxying packets, and the outbound connections are either full or failed.
 
-In historic RADIUS for Access-Request and Accounting-Request packets, there is no way for the server to send a client the positive signal that it received the packet, but is unable to reply.  Instead, the server usually just discards the request, which to the client is indistinguishable from the situation where the server is down.  This failure case is made worse by the fact that perhaps some proxied packets succeed while others fail.  The client can only conclude then that the server is randomly dropping packets, and is unreliable.
+In all RADIUS spercifications prior to this one, there is no way for the server to send a client the positive signal that it received a request, but is unable to send a response.  Instead, the server usually just discards the request, which to the client is indistinguishable from the situation where the server is down.  This failure case is made worse by the fact that perhaps some proxied packets succeed while others fail.  The client can only conclude then that the server is randomly dropping packets, and is unreliable.
 
 It would be very useful for servers to signal to clients that they have received a request, but are unable to process it.  This specification uses the Protocol-Error packet {{RFC7930, Section 4}} as that signal.  The use of Protocol-Error allows for both hop-by-hop signaling in the case of proxy forwarding errors, and also for end-to-end signaling of server to client.  Such signaling should greatly improve the robustness of the RADIUS protocol.
 
@@ -617,7 +619,7 @@ For a home server, if none of the Error-Cause values match the reason for the fa
 
 When a RADIUS proxy receives a Protocol-Error reply, it MUST examine the value of the Error-Cause attribute.  If there is no Error-Cause attribute, or its value is something other than 502 (Request Not Routable (Proxy)), 505 (Other Proxy Processing Error), or 506 (Resources Unavailable), the proxy MUST return the Protocol-Error response packet to the client, and include the Error-Cause attribute from the response it received.  This process allows for full "end to end" signaling of servers to clients.
 
-In all situations other then outlined in the preceding paragraph, and client which receives a Protocol-Error reply MUST re-process the original outgoing packet through the client forwarding algorithm.  This requirement includes both clients which originate RADIUS traffic, and proxies which see an Error-Cause attribute of 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).
+In all situations other then outlined in the preceding paragraph, a client which receives a Protocol-Error reply MUST re-process the original outgoing packet through the client forwarding algorithm.  This requirement includes both clients which originate RADIUS traffic, and proxies which see an Error-Cause attribute of 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).
 
 The expected result of this processing is that the client forwards the packet to a different server.  Clients MUST NOT forward the packet over the same connection, and SHOULD NOT forward it to over a different connection to the same server.
 
