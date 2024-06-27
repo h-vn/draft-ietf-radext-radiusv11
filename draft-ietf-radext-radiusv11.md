@@ -1,7 +1,7 @@
 ---
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-08
+docname: draft-ietf-radext-radiusv11-09
 updates: 5176, 6614, 7360
 
 stand_alone: true
@@ -25,7 +25,7 @@ author:
   email: aland@freeradius.org
 
 normative:
-  RFC8174
+  RFC8174:
   RFC2865:
   RFC6421:
   RFC6929:
@@ -237,12 +237,13 @@ Clients or servers supporting this specification can do so by extending their TL
 When set, this flag contains the list of permitted RADIUS versions as numbers, e.g. "1.0" or "1.1".  The implementation may allow multiple values in one variable, or allow multiple variables, or instead use two configuration for "minimum" and "maximum" allowed versions.  We assume here that there is one variable, which can contain either no value, or else a list of one or more versions which the current implementation supports.  In this specification, the possible values, ALPN strings, and corresponding interpretations are:
 
 ~~~~
-Flag Value    |   ALPN String(s)       | Interpretation
---------------------------------------------------------
-unset         |                        | no ALPN strings are sent.
-1.0           | radius/1.0             | require historic RADIUS/TLS
-1.0. 1.1      | radius/1.0, radius/1.1 | allow either historic RADIUS/TLS or RADIUS/1.1.
-1.1           | radius/1.1             | require RADIUS/1.1.
+Flag Value  |   ALPN String(s)       | Interpretation
+------------------------------------------------------
+unset       |                        | no ALPN strings are sent.
+1.0         | radius/1.0             | require historic RADIUS/TLS
+1.0, 1.1    | radius/1.0, radius/1.1 | allow either historic
+            |                        | RADIUS/TLS or RADIUS/1.1.
+1.1         | radius/1.1             | require RADIUS/1.1.
 ~~~~
 
 This configuration is also extensible to future RADIUS versions if that extension becomes necessary.  New flag values and ALPN names can simply be added to the list.  Implementations can then negotiate the highest version which is supported by both client and server.
@@ -697,7 +698,7 @@ This specification requires secure transport for RADIUS.  RADIUS/1.1. has all of
 
 # Security Considerations
 
-The primary focus of this document is addressing security considerations for RADIUS.  This specification relies on TLS and associated ALPN negotiation for much of its security.  We refer the reader to {{RFC8446}} and {{7360}} for discussions of the security of those protocols.  The discussion in this section is limited to issues unique to this specification.
+The primary focus of this document is addressing security considerations for RADIUS.  This specification relies on TLS and associated ALPN negotiation for much of its security.  We refer the reader to {{?RFC8446}} and {{RFC7360}} for discussions of the security of those protocols.  The discussion in this section is limited to issues unique to this specification.
 
 Implementations should rely on the underlying TLS library to perform ALPN version negotiation.  That is, implementations should supply a list of permitted ALPN strings to the TLS library, and let it return the negotiated value.
 
