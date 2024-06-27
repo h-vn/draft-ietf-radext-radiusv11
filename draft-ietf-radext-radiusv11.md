@@ -671,7 +671,7 @@ These examples are given only for illustrative and informational purposes.  Whil
 
 ## Future Standards
 
-Future work may define new attributes, packet types, etc.  It is important to be able to do such work without requiring that every new standard mention RADIUS/1.1 explicitly.  This document defines RADIUS/1.1 as having functional overlap with legacy RADIUS: the packet header Code field is unchanged, and the attribute format is largely unchanged.  As a result, any new packet Code or attribute defined for RADIUS is explicitly compatible with RADIUS/1.1: the field contents and meanings are identical.  The only difference between the two protocols is that obfuscated attributes in RADIUS are not obfuscated in RADIUS/1.1, and this document defines how that mapping is done.
+Future work may define new attributes, packet types, etc.  It is important to be able to do such work without requiring that every new standard mention RADIUS/1.1 explicitly.  This document defines RADIUS/1.1 as having functional overlap with legacy RADIUS: the protocol state machine is unchanged, the packet header Code field is unchanged, and the attribute format is largely unchanged.  As a result, any new packet Code or attribute defined for RADIUS is explicitly compatible with RADIUS/1.1: the field contents and meanings are identical.  The only difference between the two protocols is that obfuscated attributes in RADIUS are not obfuscated in RADIUS/1.1, and this document defines how that mapping is done.
 
 Any future specification needs to mention RADIUS/1.1 only if it adds fields to the RADIUS/1.1 packet header.  Otherwise, transport considerations for RADIUS/1.1 are identical to RADIUS over (D)TLS.
 
