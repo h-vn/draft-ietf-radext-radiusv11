@@ -1,8 +1,8 @@
 ---
 title: RADIUS ALPN and removing MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-09
-updates: 5176, 6614, 7360
+docname: draft-ietf-radext-radiusv11-10
+updates: 2865, 2866, 5176, 6613, 6614, 7360
 
 stand_alone: true
 ipr: trust200902
@@ -70,7 +70,7 @@ venue:
 
 This document defines Application-Layer Protocol Negotiation Extensions for use with RADIUS/TLS and RADIUS/DTLS.  These extensions permit the negotiation of an additional application protocol for RADIUS over (D)TLS.  No changes are made to RADIUS/UDP or RADIUS/TCP.  The extensions allow the negotiation of a transport profile where the RADIUS shared secret is no longer used, and all MD5-based packet signing and attribute obfuscation methods are removed.
 
-This document updates RFC5176, RFC6614, and RFC 7360.
+This document updates RFC2865, RFC2866, RFC5176, RFC6613, RFC6614, and RFC 7360.
 
 --- middle
 
