@@ -1,7 +1,7 @@
 ---
-title: RADIUS ALPN and removing MD5
+title: RADIUS/1.1, Leveraging ALPN to remove MD5
 abbrev: RADIUSv11
-docname: draft-ietf-radext-radiusv11-10
+docname: draft-ietf-radext-radiusv11-11
 updates: 2865, 2866, 5176, 6613, 6614, 7360
 
 stand_alone: true
@@ -60,6 +60,12 @@ informative:
        name: Wireless Broadband Alliance
      format:
        TXT:  https://wballiance.com/openroaming/
+  ASLEAP:
+     title: "asleap - recovers weak LEAP and PPTP passwords"
+     author:
+       name: Joshua Wright
+     format:
+       TXT: https://github.com/joswr1ght/asleap
 
 venue:
   group: RADEXT
@@ -68,7 +74,7 @@ venue:
 
 --- abstract
 
-This document defines Application-Layer Protocol Negotiation Extensions for use with RADIUS/TLS and RADIUS/DTLS.  These extensions permit the negotiation of an additional application protocol for RADIUS over (D)TLS.  No changes are made to RADIUS/UDP or RADIUS/TCP.  The extensions allow the negotiation of a transport profile where the RADIUS shared secret is no longer used, and all MD5-based packet signing and attribute obfuscation methods are removed.
+This document defines Application-Layer Protocol Negotiation Extensions for use with RADIUS/TLS and RADIUS/DTLS.  These extensions permit the negotiation of an application protocol variant of RADIUS, called "RADIUS/1.1".  No changes are made to RADIUS/UDP or RADIUS/TCP.  The extensions allow the negotiation of a transport profile where the RADIUS shared secret is no longer used, and all MD5-based packet authentication and attribute obfuscation methods are removed.
 
 This document updates RFC2865, RFC2866, RFC5176, RFC6613, RFC6614, and RFC 7360.
 
@@ -76,11 +82,15 @@ This document updates RFC2865, RFC2866, RFC5176, RFC6613, RFC6614, and RFC 7360.
 
 # Introduction
 
-The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to sign packets, and to obfuscate certain attributes.  Additional transport protocols were defined for TCP ({{RFC6613}}), TLS ({{RFC6614}}), and DTLS ({{RFC7360}}).  However, those transport protocols still relied on MD5.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, signing, and packet validation.
+The RADIUS protocol {{RFC2865}} uses MD5 {{RFC1321}} to authenticate packets, and to obfuscate certain attributes.  Additional transport protocols were defined for TCP ({{RFC6613}}), TLS ({{RFC6614}}), and DTLS ({{RFC7360}}).  However, those transport protocols still use MD5 to authenticate individual packets.  That is, the shared secret was used along with MD5, even when the RADIUS packets were being transported in (D)TLS.  At the time, the consensus of the RADEXT working group was that this continued use of MD5 was acceptable.  TLS was seen as a simple "wrapper" around RADIUS, while using a fixed shared secret.  The intention at the time was to allow the use of (D)TLS while making essentially no changes to the basic RADIUS encoding, decoding, authentication, and packet validation.
 
-Issues of MD5 security have been known for decades, most most notably in {{RFC6151}}, and in {{RFC6421, Section 3}}, among others.  The reliance on MD5 for security makes it impossible to use RADIUS in a FIPS-140 compliant system, as FIPS-140 forbids systems from relying on insecure cryptographic methods for security.  In addition, the use of MD5 in RADIUS/TLS and RADIUS/DLTS adds no security or privacy over that provided by TLS.
+Issues of MD5 security have been known for decades, most most notably in {{RFC6151}}, and in {{RFC6421, Section 3}}, among others.  The reliance on MD5 for security makes it impossible to use RADIUS in secure systems which forbid the use of digest algorithms with known vunerabilities.  For example, FIPS-140 forbids systems from relying on insecure cryptographic methods for security.
 
-This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS over (D)TLS which removes the need to use MD5 for (D)TLS.  We make no changes to UDP or TCP transport.  This extension can best be understood as a transport profile for RADIUS over TLS, rather than a whole-sale revision of the RADIUS protocol.
+While the use of MD5 in RADIUS/TLS is not known to be insecure, it can be difficult for individual organizations to perform cryprographic analyses of the protocols that they use.  It is much simpler and more practical to simply verify that there insecure digests such as MD5 are not used anywhere in the system.  Then by definition, the systems are at least not known to be insecure.
+
+In addition, the use of MD5 in RADIUS/TLS and RADIUS/DLTS adds no security or privacy over that provided by TLS.  In hindsight, the decision of the RADEXT working group to retain MD5 for historic RADIUS/TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.  The author of this document played a part in that original decision, which is now be corrected by this document.
+
+This document defines an Application-Layer Protocol Negotiation (ALPN) {{RFC7301}} extension for RADIUS over (D)TLS which removes the need to use MD5 for (D)TLS, which we call RADIUS/1.1.  This specification makes no changes to UDP or TCP transport.  The RADIUS/1.1 protocol can best be understood as a transport profile for RADIUS over TLS, rather than a whole-sale revision of the RADIUS protocol.
 
 Systems which implement this transport profile can be more easily verified to be FIPS-140 compliant.  A preliminary implementation has shown that only minor code changes are required to support RADIUS/1.1 on top of an existing RADIUS/TLS server implementation, which are:
 
@@ -88,7 +98,7 @@ Systems which implement this transport profile can be more easily verified to be
 
 * After the TLS handshake has completed, a method to query if ALPN has chosen a protocol, and if yes, which protocol was chosen.
 
-* Changes to the packet encoder and decoder, so that the individual packets are not signed, and no attribute is encoded with the historic obfuscation methods.
+* Changes to the packet encoder and decoder, so that the individual packets are not authenticated, and no attribute is encoded with the historic obfuscation methods.
 
 That is, the bulk of the ALPN protocol can be left to the underlying TLS implementation.  This document discusses the ALPN exchange in detail in order to give simplified descriptions for the reader, and so that the reader does not have to read or understand all of {{RFC7301}}.
 
@@ -124,9 +134,9 @@ The following items are left unchanged from traditional TLS-based transports for
 
 * This extension uses the same ports (2083/tcp and 2083/udp) which are defined for RADIUS/TLS {{RFC6614}} and RADIUS/DTLS {{RFC7360}}.
 
-A major benefit of this extension is that a home server which implements it can also be more easily verified for FIPS-140 compliance.  That is, a home server can remove all uses of MD4 and MD5, which means that those algorithms are provably not used for security purposes.  In that case, however, the home server will not support CHAP, MS-CHAP, or any authentication method which uses MD4 or MD5.  The choice of which authentication method to accept is always left to the home server.  This specification does not change any authentication method carried in RADIUS, and does not mandate (or forbid) the use of any authentication method for any system.
+A major benefit of this extension is that a server which implements it can also be more easily verified for FIPS-140 compliance.  That is, a server can remove all uses of MD5, which means that those algorithms are provably not used for security purposes.  In that case, however, the server will not support CHAP, or any authentication method which uses MD5.  The choice of which authentication method to accept is always left to the server.  This specification does not change any authentication method carried in RADIUS, and does not mandate (or forbid) the use of any authentication method for any system.
 
-As for proxies, there was never a requirement that proxies implement CHAP or MS-CHAP authentication.  So far as a proxy is concerned, attributes relating to CHAP and MS-CHAP are simply opaque data that is transported unchanged to the next hop.  It is therefore possible for a FIPS-140 compliant proxy to transport authentication methods which depend on MD4 or MD5, so long as that data is forwarded to a home server which supports those methods.
+As for proxies, there was never a requirement that proxies implement CHAP or MS-CHAP authentication.  So far as a proxy is concerned, attributes relating to CHAP and MS-CHAP are simply opaque data that is transported unchanged to the next hop.  It is therefore possible for a FIPS-140 compliant proxy to transport authentication methods which depend on MD5, so long as that data is forwarded to a server which supports those methods.
 
 We reiterate that the decision to support (or not) any authentication method is entirely site local, and is not a requirement of this specification.  The contents or meaning of any RADIUS attribute other than Message-Authenticator (and similar attributes) are not modified.  The only change to the Message-Authenticator attribute is that it is no longer used in RADIUS/1.1.
 
@@ -138,7 +148,7 @@ This specification is compatible with all existing RADIUS specifications.  There
 
 We note that this document makes no changes to previous RADIUS specifications.  Existing RADIUS implementations can continue to be used without modification.  Where previous specifications are explicitly mentioned and updated, those updates or changes apply only when the RADIUS/1.1 transport profile is being used.
 
-In short, when negotiated on a connection, the RADIUS/1.1 transport profile permits implementations to avoid MD5 when signing packets, or when obfuscating certain attributes.
+In short, when negotiated on a connection, the RADIUS/1.1 transport profile permits implementations to avoid MD5 when authenticating packets, or when obfuscating certain attributes.
 
 # Terminology
 
@@ -202,9 +212,9 @@ The ALPN name defined for RADIUS/1.1 is as follows:
 
 Where ALPN is not configured or is not received in a TLS connection, systems supporting ALPN MUST NOT use RADIUS/1.1.
 
-Where ALPN is configured, the client signals support by sending ALPN strings signaling which protocols it supports..  The server can accept one of these proposals and reply with a matching ALPN string, or reject this proposal, and not reply with any ALPN string.  A full walk-through of the protocol negotiation is given below.
+Where ALPN is configured, the client signals support by sending ALPN strings listing which protocols it supports.  The server can accept one of these proposals and reply with a matching ALPN string, or reject this proposal, and not reply with any ALPN string.  A full walk-through of the protocol negotiation is given below.
 
-Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.  Implementations MUST NOT have an administrative flag which causes a connection to use "radius/1.1", but which does not signal that protocol via ALPN.
+Implementations MUST signal ALPN "radius/1.1" in order for it to be used in a connection.
 
 The next step in defining RADIUS/1.1 is to review how ALPN works.
 
@@ -232,12 +242,12 @@ The next step in defining RADIUS/1.1 is to define how ALPN is configured on the 
 
 ## Configuration of ALPN for RADIUS/1.1
 
-Clients or servers supporting this specification can do so by extending their TLS configuration through the addition of a new configuration flag, called "Version" here.  The exact name given below does not need to be used, but it is RECOMMENDED that administrative interfaces or programming interfaces use a similar name in order to provide consistent terminology.  This flag controls how the implementation signals use of this protocol via ALPN.
+Clients or servers supporting this specification can do so by extending their TLS configuration through the addition of a new configuration variable, called "Version" here.  The exact name given below does not need to be used, but it is RECOMMENDED that administrative interfaces or programming interfaces use a similar name in order to provide consistent terminology.  This variable controls how the implementation signals use of this protocol via ALPN.
 
-When set, this flag contains the list of permitted RADIUS versions as numbers, e.g. "1.0" or "1.1".  The implementation may allow multiple values in one variable, or allow multiple variables, or instead use two configuration for "minimum" and "maximum" allowed versions.  We assume here that there is one variable, which can contain either no value, or else a list of one or more versions which the current implementation supports.  In this specification, the possible values, ALPN strings, and corresponding interpretations are:
+When set, this variable should contain the list of permitted RADIUS versions as numbers, e.g. "1.0" or "1.1".  The implementation may allow multiple values in one variable, or allow multiple variables, or instead use two configuration for "minimum" and "maximum" allowed versions.  We assume here that there is one variable, which can contain either no value, or else a list of one or more versions which the current implementation supports.  In this specification, the possible values, ALPN strings, and corresponding interpretations are:
 
 ~~~~
-Flag Value  |   ALPN String(s)       | Interpretation
+Value       |   ALPN String(s)       | Interpretation
 ------------------------------------------------------
 unset       |                        | no ALPN strings are sent.
 1.0         | radius/1.0             | require historic RADIUS/TLS
@@ -246,25 +256,25 @@ unset       |                        | no ALPN strings are sent.
 1.1         | radius/1.1             | require RADIUS/1.1.
 ~~~~
 
-This configuration is also extensible to future RADIUS versions if that extension becomes necessary.  New flag values and ALPN names can simply be added to the list.  Implementations can then negotiate the highest version which is supported by both client and server.
+This configuration is also extensible to future RADIUS versions if that extension becomes necessary.  New values and ALPN names can simply be added to the list.  Implementations can then negotiate the highest version which is supported by both client and server.
 
-Implementations SHOULD support both historic RADIUS/TLS and RADIUS/1.1.  Such implementations MUST set the default value for this configuratiun flag to "1.0, 1.1".  This setting ensures that both versions of RADIUS can be negotiated.
+Implementations SHOULD support both historic RADIUS/TLS and RADIUS/1.1.  Such implementations MUST set the default value for this configuration variable to "1.0, 1.1".  This setting ensures that both versions of RADIUS can be negotiated.
 
-Implementations MAY support only RADIUS/1.1.  In which case the default value for this configuration flag MUST be "1.1".  This behavior is NOT RECOMMENDED, as it is incompatible with historic RADIUS/TLS.  This behavior can only be a reasonable default when all (or nearly all) RADIUS clients have been updated to support RADIUS/1.1.
+Implementations MAY support only RADIUS/1.1.  In which case the default value for this configuration variable MUST be "1.1".  This behavior is NOT RECOMMENDED, as it is incompatible with historic RADIUS/TLS.  This behavior can only be a reasonable default when all (or nearly all) RADIUS clients have been updated to support RADIUS/1.1.
 
 A more detailed definition of the variable and the meaning of the values is given below.
 
-Configuration Flag Name
+Configuration Variable Name
 
 > Version
 
 Values
 
-> When the flag is unset, ALPN is not used.
+> When the variable is unset, ALPN is not used.
 >
 > Any connection MUST use historic RADIUS/TLS.
 >
-> This flag is included here only for logical completeness.  Implementations of this specification SHOULD be configured to always send one or more ALPN strings.  This data signals that the implementation is capable performing ALPN negotiation, even if it is not currently configured to use RADIUS/1.1
+> This variable is included here only for logical completeness.  Implementations of this specification SHOULD be configured to always send one or more ALPN strings.  This data signals that the implementation is capable performing ALPN negotiation, even if it is not currently configured to use RADIUS/1.1
 >
 >> Client Behavior
 >>
@@ -306,7 +316,7 @@ We reiterate that systems implementing this specification, but which are configu
 
 Systems implementing RADIUS/1.1 SHOULD NOT be configured by default to forbid that protocol.  That setting exists mainly for completeness, and to give administrators the flexibility to control their own deployments.
 
-While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, we believe that this behavior is useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.
+While {{RFC7301}} does not discuss the possibility of the server sending a TLS alert of "no_application_protocol" (120) when the client does not use ALPN, this behavior appears to be useful.  As such, servers MAY send a a TLS alert of "no_application_protocol" (120) when the client does not use ALPN.
 
 However, some TLS implementations may not permit an application to send a TLS alert of its choice, at a time of its choice.   This limitation means that it is not always possible for an application to send the TLS alert as discussed in the previous section.  The impact is that an implementation may attempt to connect, and then see that the connection fails, but not be able to determine why that failure has occurred.  Implementers and administrators should be aware that unexplained connection failures may be due to ALPN negotiation issues.
 
@@ -334,7 +344,7 @@ The purpose of this packet is not to have the other end of the connection automa
 
 ### Tabular Summary
 
-The preceding text gives a large number of recommendations.  In order to give a simpler description of the outcomes, a table of possible behaviors for client/server values of the Version flag is given below.  This table and the names given below are for informational and descriptive purposes only.
+The preceding text gives a large number of recommendations.  In order to give a simpler description of the outcomes, a table of possible behaviors for client/server values of the Version variable is given below.  This table and the names given below are for informational and descriptive purposes only.
 
 ~~~~
                              Server
@@ -397,7 +407,7 @@ Finally, defining ALPN strings for all known RADIUS versions will make it easier
 
 > When session resumption or session tickets {{?RFC5077}} are used, the previous contents of this extension are irrelevant, and only the values in the new handshake messages are considered.
 
-In order to prevent down-bidding attacks, RADIUS systems which negotiate the "radius/1.1" protocol MUST associate that information with the session ticket, and enforce the use of "radius/1.1" on session resumption.  That is, if "radius/1.1" was negotiated for a session, both clients and servers MUST behave as if the RADIUS/1.1 flag was set to "require" for that session.
+In order to prevent down-bidding attacks, RADIUS systems which negotiate the "radius/1.1" protocol MUST associate that information with the session ticket, and enforce the use of "radius/1.1" on session resumption.  That is, if "radius/1.1" was negotiated for a session, both clients and servers MUST behave as if the RADIUS/1.1 variable was set to "require" for that session.
 
 A client which is resuming a "radius/1.1" connection MUST advertise only the capability to do "radius/1.1" for the resumed session.  That is, even if the client configuration allows historic RADIUS/TLS for new connections, it MUST signal "radius/1.1" when resuming a session which had previously negotiated "radius/1.1".
 
@@ -411,7 +421,7 @@ This section describes the application-layer data which is sent inside of (D)TLS
 
 ## RADIUS/1.1 Packet Format
 
-When RADIUS/1.1 is used, the RADIUS header is modified from standard RADIUS.  While the header has the same size, some fields have different meaning.  The Identifier and the Request / Response Authenticator fields are no longer used in RADIUS/1.1.  Any operations which depend on those fields MUST NOT be performed.  As packet signing and security are handled by the TLS layer, RADIUS-specific cryptographic primitives are no longer in RADIUS/1.1.
+When RADIUS/1.1 is used, the RADIUS header is modified from standard RADIUS.  While the header has the same size, some fields have different meaning.  The Identifier and the Request / Response Authenticator fields are no longer used in RADIUS/1.1.  Any operations which depend on those fields MUST NOT be performed.  As packet authentication, secrecy, and security are handled by the TLS layer, RADIUS-specific cryptographic primitives are no longer needed or used in RADIUS/1.1.
 
 A summary of the RADIUS/1.1 packet format is shown below.  The fields are transmitted from left to right.
 
@@ -484,9 +494,9 @@ We note that in previous RADIUS specifications, the Identifier field could have 
 
 In contrast, the Token values MUST be generated from a 32-bit counter which is unique to each connection.  Such a counter SHOULD be initialized to a random value, taken from a random number generator, whenever a new connection is opened.  The counter MUST then be incremented for every unique new packet which is sent by the client.  Retransmissions of the same packet MUST use the same unchanged Token value.  As the Token value is mandated to be unique per packet, a duplicate Token value is the only way that a server can detect duplicate transmissions.
 
-This counter method ensures that the Tokens are unique, and are also independent of any Code value in the RADIUS packet header.  This method is mandated because any other method of generating unique and non-conflicting Token values is more complex, with no additional benefit and only the likelihood of increased bugs and interoperability issues.  Any other method for generating Token values would require substantially more resources to track outstanding Token values and their associated expiry times.  The chance that initial values are re-used across two connections is one in 2^32, which is acceptable.
+This counter method ensures that the Tokens are unique, and are also independent of any Code value in the RADIUS packet header.  This method is mandated because any other method of generating unique and non-conflicting Token values is more complex, with no additional benefit and only the likelihood of increased bugs and interoperability issues.  Any other method for generating Token values would require substantially more resources to track outstanding Token values and their associated expiry times.  The chance that initial values could potentially cause any confusion by being re-used across two connections is one in 2^32, which is acceptable.
 
-The purpose for initializing the Token to a random counter is to aid administrators in debugging systems.  If the Token values always used the same sequence, then it would easier for a person to confuse different packets which have the same Token value.  By instead starting with a random value, those values are more evenly distributed across the set of allowed values, and are therefore more likely to be unique.
+The purpose for initializing the Token to a random counter is mainly to aid administrators in debugging systems.  If the Token values always used the same sequence, then it would easier for a person to confuse different packets which have the same Token value.  By instead starting with a random value, those values are more evenly distributed across the set of allowed values, and are therefore more likely to be unique.
 
 As there is no special meaning for the Token, there is no meaning when a counter "wraps" around from a high value back to zero.  The originating system can simply continue to increment the Token value without taking any special action in that situation.
 
@@ -536,7 +546,7 @@ The User-Password attribute ({{RFC2865, Section 5.2}}) MUST be encoded the same 
 
 The contents of the User-Password field MUST be at least one octet in length, and MUST NOT be more than 128 octets in length.  This limitation is maintained from {{RFC2865, Section 5.2}} for compatibility with historic transports.
 
-Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  We maintain that data type here, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044, Section 3.4}}.
+Note that the User-Password attribute is not of data type 'text'.  The original reason in {{RFC2865}} was because the attribute was encoded as an opaque and obfuscated binary blob.  This document does not change the data type of User-Password, even though the attribute is no longer obfuscated.  The contents of the User-Password attribute do not have to be printable text, or UTF-8 data as per the definition of the 'text' data type in {{RFC8044, Section 3.4}}.
 
 However, implementations should be aware that passwords are often printable text, and where the passwords are printable text, it can be useful to store and display them as printable text.  Where implementations can process non-printable data in the 'text' data type, they MAY use the data type 'text' for User-Password.
 
@@ -564,7 +574,7 @@ Any Vendor-Specific attribute which uses similar obfuscation MUST be encoded as 
 
 The Message-Authenticator attribute ({{RFC3579, Section 3.2}}) MUST NOT be sent over a RADIUS/1.1 connection.  That attribute is not used or needed in RADIUS/1.1.
 
-If the Message-Authenticator attribute is received over a RADIUS/1.1 connection, the attribute MUST be silently discarded, or treated as an "invalid attribute", as defined in {{RFC6929, Section 2.8}}.  That is, the Message-Authenticator attribute is no longer used to sign packets for the RADIUS/1.1 transport.  Its existence (or not) in this transport is meaningless.
+If the Message-Authenticator attribute is received over a RADIUS/1.1 connection, the attribute MUST be silently discarded, or treated as an "invalid attribute", as defined in {{RFC6929, Section 2.8}}.  That is, the Message-Authenticator attribute is no longer used to authenticate packets for the RADIUS/1.1 transport.  Its existence (or not) in this transport is meaningless.
 
 A system which receives a Message-Authenticator attribute in a packet MUST treat it as an "invalid attribute" as defined in {{RFC6929, Section 2.8}}.  That is, the packet can still be processed, even if the Message-Authenticator attribute is ignored.
 
@@ -586,7 +596,9 @@ As the Message-Authentication-Code attribute is no longer used in RADIUS/1.1, th
 
 While some attributes such as CHAP-Password, etc. depend on insecure cryptographic primitives such as MD5, these attributes are treated as opaque blobs when sent between a RADIUS client and server.  The contents of the attributes are not obfuscated, and they do not depend on the RADIUS shared secret.  As a result, these attributes are unchanged in RADIUS/1.1.
 
-A server implementing this specification can proxy CHAP, MS-CHAP, etc. without any issue.  A home server implementing this specification can authenticate CHAP, MS-CHAP, etc. without any issue.
+Similarly, MS-CHAP depends on MD4, and RADIUS/1.1 does not change the definition of any MS-CHAP attributes.  However, MS-CHAP has been broken for decades, as noted in {{ASLEAP}}.  The only appropriate use-case for MS-CHAP is when it is protected by a secure transport such as RADIUS/TLS, RADIUS/DTLS, or when it is used for "inner tunnel" authentication methods as with PEAP or TTLS.
+
+A server implementing this specification can proxy CHAP, MS-CHAP, etc. without any issue.  A  server implementing this specification can authenticate CHAP, MS-CHAP, etc. without any issue.  The RADIUS/1.1 protocol changes how RADIUS packets are authenticated, and how "secret" data is obfuscated inside of a RADIUS packet.  It does not change any authentication method which is transported inside of RADIUS.
 
 ## Original-Packet-Code
 
@@ -612,7 +624,7 @@ In all RADIUS spercifications prior to this one, there is no way for the server 
 
 It would be very useful for servers to signal to clients that they have received a request, but are unable to process it.  This specification uses the Protocol-Error packet {{RFC7930, Section 4}} as that signal.  The use of Protocol-Error allows for both hop-by-hop signaling in the case of proxy forwarding errors, and also for end-to-end signaling of server to client.  Such signaling should greatly improve the robustness of the RADIUS protocol.
 
-When a RADIUS/1.1 server determines that it is unable to process an Access-Request or Accounting-Request packet, it MUST respond with a Protocol-Error packet containing an Error-Cause attribute.  A proxy which cannot forward the packet MUST respond with either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  This requirement is to help distinguish failures in the proxy chain from failures at the home server,
+When a RADIUS/1.1 server determines that it is unable to process an Access-Request or Accounting-Request packet, it MUST respond with a Protocol-Error packet containing an Error-Cause attribute.  A proxy which cannot forward the packet MUST respond with either 502 (Request Not Routable (Proxy)), or 505 (Other Proxy Processing Error).  This requirement is to help distinguish failures in the proxy chain from failures at the final (i.e. home) server,
 
 For a home server, if none of the Error-Cause values match the reason for the failure, then the value 506 (Resources Unavailable) MUST be used.
 
@@ -664,7 +676,7 @@ This specification updates {{RFC5176}} to allow the Error-Cause attribute to app
 
 That is, the reason for sending the Access-Reject packet (or Protocol-Error packet) may match a defined Error-Cause value.  In that case, it is useful for implementations to send an Error-Cause attribute with that value.  This behavior can help RADIUS system administrators debug issues in complex proxy chains.
 
-For example, a proxy may normally forward Access-Request packets which contain EAP-Message attributes.  The proxy can determine if the contents of the EAP-Message are invalid, for example if the first octet has value larger than 4.  In that case, there may be no benefit to forwarding the packet, as the home server will reject it.  It may then then possible for the proxy (with the knowledge and consent of involved parties) to immediately reply with an Access-Reject containing an Error-Cause attribute with value 202 for "Invalid EAP Packet (Ignored)".
+For example, a proxy may normally forward Access-Request packets which contain EAP-Message attributes.  The proxy can determine if the contents of the EAP-Message are invalid.  On example of an invalid EAP-Message is where the first octet has value larger than 4.  In that case, there may be no benefit to forwarding the packet, as the home server will reject it.  It may then then possible for the proxy (with the knowledge and consent of involved parties) to immediately reply with an Access-Reject containing an Error-Cause attribute with value 202 for "Invalid EAP Packet (Ignored)".
 
 Another possibility is that if a proxy is configured to forward packets for a particular realm, but it has determined that there are no available connections to the next hop for that realm.  In that case, it may be possible for the proxy (again with the knowledge and consent of involved parties) to reply with an Access-Reject containing an Error-Cause attribute with value 502 for "Request Not Routable (Proxy)"
 
@@ -682,7 +694,7 @@ New specifications MAY define new attributes which use the obfuscation methods f
 
 New RADIUS specifications MUST NOT define attributes which can only be transported via RADIUS over TLS.  The RADIUS protocol has no way to signal the security requirements of individual attributes.  Any existing implementation will handle these new attributes as "invalid attributes" ({{RFC6929, Section 2.8}}), and could forward them over an insecure link.  As RADIUS security and signaling is hop-by-hop, there is no way for a RADIUS client or server to even know if such forwarding is taking place.  For these reasons and more, it is therefore inappropriate to define new attributes which are only secure if they use a secure transport layer.
 
-The result is that specifications do not need to mention this transport profile, or make any special provisions for dealing with it.  This specification defines how RADIUS packet encoding, decoding, signing, and verification are performed when using RADIUS/1.1.  So long as any future specification uses the existing encoding, etc. schemes defined for RADIUS, no additional text in future documents is necessary in order to be compatible with RADIUS/1.1.
+The result is that specifications do not need to mention this transport profile, or make any special provisions for dealing with it.  This specification defines how RADIUS packet encoding, decoding, authentication, and verification are performed when using RADIUS/1.1.  So long as any future specification uses the existing encoding, etc. schemes defined for RADIUS, no additional text in future documents is necessary in order to be compatible with RADIUS/1.1.
 
 We note that it is theoretically possible for future standards to define new cryptographic primitives for use with RADIUS/UDP.  In that case, those documents would likely have to describe how to transport that data in RADIUS/1.1.  We believe that such standards are unlikely to be published, as other efforts in the RADEXT working group are forbidding such updates to RADIUS.
 
@@ -702,7 +714,9 @@ The primary focus of this document is addressing security considerations for RAD
 
 Implementations should rely on the underlying TLS library to perform ALPN version negotiation.  That is, implementations should supply a list of permitted ALPN strings to the TLS library, and let it return the negotiated value.
 
-There are few other opportunities for security issues.  If an implementation gets ALPN negotiation wrong, then the wrong application data will be transported inside of TLS.  While RADIUS/1.0 and RADIUS/1.1 share similar packet formats, the protocols are not mutually compatible.
+There are few other opportunities for security issues.  If an implementation gets ALPN negotiation wrong, then the wrong application data will be transported inside of TLS.  While RADIUS/1.0 and RADIUS/1.1 share similar packet formats, the protocols are not mutually compatible. 
+
+When an implementation receives the packets for a RADIUS version which is not supported by this connection, it will not be able to process the packets.  Implementations can produce log messages indicating that the application-layer data is unexpected, and close the connection. In addition, the implementations which see the incorrect application data already have full access to all secrets, passwords, etc. being transported, so any protocol differences do not result any security issue.  Since all of the application data is protected by TLS, there is no possibility for an attacker to obtain any extra data as a result of this misconfiguration. 
 
 RADIUS/1.0 requests sent over a RADIUS/1.1 connection may be accepted by the RADIUS/1.1 server, as the server will ignore the ID field, and try to use portions of the Request Authenticator as a Token.  However, the reply from the RADIUS/1.1 server will fail the Response Authenticator validation by the RADIUS/1.0 client.  The responses will therefore be dropped.  The client will generally log these failures, and an administrator will address the issue.
 
@@ -729,8 +743,6 @@ Reference:  This document
 ~~~~
 
 # Acknowledgments
-
-In hindsight, the decision to retain MD5 for historic RADIUS/TLS was likely wrong.  It was an easy decision to make in the short term, but it has caused ongoing problems which this document addresses.
 
 Thanks to Bernard Aboba, Karri Huhtanen, Heikki Vatiainen, Alexander Clouter, Michael Richardson, Hannes Tschofenig, Matthew Newton, and Josh Howlett for reviews and feedback.
 
@@ -861,5 +873,13 @@ draft-ietf-radext-radiusv11-08
 draft-ietf-radext-radiusv11-09
 
 > Review from Barry Lieba
+
+draft-ietf-radext-radiusv11-10
+
+> AD review.
+
+draft-ietf-radext-radiusv11-11
+
+> Review from Eric Vyncke
 
 --- back
